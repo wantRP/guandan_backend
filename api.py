@@ -50,19 +50,27 @@ Hand = namedtuple('Hand', ['handType', 'rank', 'cards','wildCardUsed'])
 class HandGenerator(object):
    #先生成所有组合，再根据大小过滤
     def __init__(self, handCards,level='2'):
-       self.handCards = handCards
-       self.level=level
-       self.wildCount=0
-       self.wildCard='H'+self.level
-       self.nonWildCards:list[str]=[]
-       self.pairs=None
-       self.handCards=self.sortHand(handCards)
-       for x in self.handCards:
-            if(x==self.wildCard):
-                self.wildCount=self.wildCount+1
-            else:
-                self.nonWildCards=self.nonWildCards+[x]
-        
+        self.handCards = handCards
+        self.level=level
+        self.wildCount=0
+        self.wildCard='H'+self.level
+        self.nonWildCards:list[str]=[]
+        self.pairs=None
+        self.triples=None
+        self.pointedCards:list[list[str]] = [[] for _ in range(14)]
+        self.handCards=self.sortHand(handCards)
+        for x in self.handCards:
+           if(x==self.wildCard):
+               self.wildCount=self.wildCount+1
+           else:
+               self.nonWildCards=self.nonWildCards+[x]
+               if(x[1]!='B' and x[1]!='R'):
+                   self.pointedCards[RANK_NUM[x[1]]]=self.pointedCards[RANK_NUM[x[1]]]+[x]
+               if(x[1]=='A'):
+                   self.pointedCards[0]=self.pointedCards[0]+[x]
+           pass
+        self.pointCount=[len(x) for x in self.pointedCards]
+       
     @staticmethod
     def compareSingle(a,b)->bool:
         if(RANK_NUM[a[1]]<RANK_NUM[b[1]]):
@@ -257,7 +265,7 @@ class HandGenerator(object):
                 else:
                     break
         return l
-    def getTriple(self)->list:
+    def getTriples(self)->list:
         l=[]
         wildCount=self.wildCount
         if(wildCount==2):
@@ -292,7 +300,7 @@ class HandGenerator(object):
             i=i+1
         self.pairs=l
         return l
-    def getTripleOfPair(self)->list:
+    def getTripleOfPairs(self)->list:
         l=[]
         #nonWildCards=self.sortHand(self.nonWildCards,byRealPoint=True)
         wildCount=self.wildCount
@@ -310,7 +318,6 @@ class HandGenerator(object):
                     a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(pointCards[i],1))]
                     b=[list(x) for x in dict.fromkeys(combinations(pointCards[i+1],2))]
                     c=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(pointCards[i+2],1))]
-
                     l=l+[[HandType.TRIPLE_OF_PAIR,pointCards[i][0][1],x[0]+x[1]+x[2],2] for x in product(a,b,c)]
                 if(pointCount[i]>=1 and pointCount[i+1]>=1 and pointCount[i+2]>=2): #A*B*CC
                     a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(pointCards[i],1)  )]
@@ -337,9 +344,75 @@ class HandGenerator(object):
                     l=l+[ [HandType.TRIPLE_OF_PAIR, NUM_RANK[i], x[0]+x[1]+[self.wildCard,self.wildCard] ,2] for x in product(a,c)]
             wildCount=wildCount-1
         if(wildCount==1):
-            
-        #print(pointCards)
+            for i in range(12):
+                if(pointCount[i]>=1 and pointCount[i+1]>=2 and pointCount[i+2]>=2): #A*BBCC
+                    a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(pointCards[i],1))]
+                    b=[list(x) for x in dict.fromkeys(combinations(pointCards[i+1],2))]
+                    c=[list(x) for x in dict.fromkeys(combinations(pointCards[i+2],2))]
+                    l=l+[[HandType.TRIPLE_OF_PAIR,pointCards[i][0][1],x[0]+x[1]+x[2],1] for x in product(a,b,c)]
+                if(pointCount[i]>=1 and pointCount[i+1]>=2 and pointCount[i+2]>=2): #AAB*CC
+                    a=[list(x) for x in dict.fromkeys(combinations(pointCards[i],2)  )]
+                    b=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(pointCards[i+1],1))]
+                    c=[list(x)                 for x in dict.fromkeys(combinations(pointCards[i+2],2))]
+                    l=l+[[HandType.TRIPLE_OF_PAIR,pointCards[i][0][1],x[0]+x[1]+x[2],1] for x in product(a,b,c)]
+                if(pointCount[i]>=2 and pointCount[i+1]>=2 and pointCount[i+2]>=1): #AABBC*
+                    a=[list(x)                 for x in dict.fromkeys(combinations(pointCards[i],  2))]
+                    b=[list(x) for x in dict.fromkeys(combinations(pointCards[i+1],2))]
+                    c=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(pointCards[i+2],1))]
+                    l=l+[[HandType.TRIPLE_OF_PAIR,pointCards[i][0][1],x[0]+x[1]+x[2],1] for x in product(a,b,c)]
+        for i in range(12):
+            if(pointCount[i]>=2 and pointCount[i+1]>=2 and pointCount[i+2]>=2): #A*BBCC
+                a=[list(x) for x in dict.fromkeys(combinations(pointCards[i],2))]
+                b=[list(x) for x in dict.fromkeys(combinations(pointCards[i+1],2))]
+                c=[list(x) for x in dict.fromkeys(combinations(pointCards[i+2],2))]
+                l=l+[[HandType.TRIPLE_OF_PAIR,pointCards[i][0][1],x[0]+x[1]+x[2],0] for x in product(a,b,c)]
         return l
-a=HandGenerator(['SA', 'HA', 'B2', 'S2', 'H3','H2','H2', 'C3', 'D4', 'H4', 'CT', 'H6'],'2')
-for x in (a.getTripleOfPair()):
+    def getPlates(self)->list:
+        l=[]
+        wildCount=self.wildCount
+        if(wildCount==2):
+            for i in range(13):
+                if(self.pointCount[i]>=1 and self.pointCount[i+1]>=3): #A**BBB
+                    a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],1))]
+                    b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],3))]
+                    l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+[self.wildCard,self.wildCard]+x[1],2] for x in product(a,b)]
+                if(self.pointCount[i]>=3 and self.pointCount[i+1]>=3): #AAAB**
+                    a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],3))]
+                    b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],1))]
+                    l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+x[1]+[self.wildCard,self.wildCard],2] for x in product(a,b)]
+                if(self.pointCount[i]>=2 and self.pointCount[i+1]>=2): #AA**BB
+                    a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],2))]
+                    b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],2))]
+                    l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+[self.wildCard,self.wildCard]+x[1],2] for x in product(a,b)]
+            wildCount=1
+        if(wildCount==1):
+            for i in range(13):
+                if(self.pointCount[i]>=2 and self.pointCount[i+1]>=3): #AA*BBB
+                    a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],1))]
+                    b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],3))]
+                    l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+[self.wildCard]+x[1],1] for x in product(a,b)]
+                if(self.pointCount[i]>=3 and self.pointCount[i+1]>=2): #AAABB*
+                    a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],3))]
+                    b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],1))]
+                    l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+x[1]+[self.wildCard],1] for x in product(a,b)]
+        for i in range(13):
+            if(self.pointCount[i]>=3 and self.pointCount[i+1]>=3): 
+                a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],1))]
+                b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],3))]
+                l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+x[1],0] for x in product(a,b)]
+        return l
+    def getFullHouse(self)->list:
+        #l=[]
+        if(self.pairs==None): self.pairs=self.getPairs()
+        if(self.triples==None): self.triples=self.getTriples()
+        for i in range(self.wildCount+1):
+            triples=[x for x in self.triples if x[3]==i]
+            #for j in range(self.wildCount-i+1):
+            pairs=[x for x in self.pairs if x[3]<=self.wildCount-i ]
+            return [[HandType.FULLHOUSE,y[1],y[2].append(x[2],x[3]+y[3])] for x in pairs for y in triples if(x[1]!=y[1])]
+    def getStraightsAndFlushes(self)->list:
+        l=[]
+
+a=HandGenerator(['SA', 'HA', 'B2', 'S2', 'H3','H2','HR','H2', 'C3', 'SB', 'H4', 'CT', 'H6'],'3')
+for x in (a.getPlates()):
     print(x)
