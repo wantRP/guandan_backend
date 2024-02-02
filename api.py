@@ -402,7 +402,7 @@ class HandGenerator(object):
                 l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+x[1],0] for x in product(a,b)]
         return l
     def getFullHouse(self)->list:
-        #l=[]
+        l=[]
         if(self.pairs==None): self.pairs=self.getPairs()
         if(self.triples==None): self.triples=self.getTriples()
         for i in range(self.wildCount+1):
@@ -410,9 +410,40 @@ class HandGenerator(object):
             #for j in range(self.wildCount-i+1):
             pairs=[x for x in self.pairs if x[3]<=self.wildCount-i ]
             return [[HandType.FULLHOUSE,y[1],y[2].append(x[2],x[3]+y[3])] for x in pairs for y in triples if(x[1]!=y[1])]
+        return l
     def getStraightsAndFlushes(self)->list:
         l=[]
+        for i in range(10):
+            wildCardUsed=0
+            legal=True
+            for j in range(5):
 
-a=HandGenerator(['SA', 'HA', 'B2', 'S2', 'H3','H2','HR','H2', 'C3', 'SB', 'H4', 'CT', 'H6'],'3')
-for x in (a.getPlates()):
+                if(self.pointCount[i+j]==0):
+                    wildCardUsed=wildCardUsed+1
+                    if(wildCardUsed>self.wildCount):
+                        legal=False
+                        break
+            if(legal):
+                straights:list[str]=[["0"]]
+                for j in range(i,i+5):
+                    if(self.pointCount[j]==0):
+                        straights=[x[0]+[x[1]] for x in product(straights,[self.wildCard])] 
+                    else:
+                        straights=[x[0]+[x[1]] for x in product(straights,self.pointedCards[j] )]
+                for x in straights:
+                    x=x[1:]
+                    pattern=None
+                    flush=True
+                    for y in x:
+                        if(y==self.wildCard):
+                            continue
+                        if(pattern!=None and pattern!=y[0]):
+                            flush=False
+                            break
+                        pattern=y[0]
+                    l.append([HandType.FLUSH if flush else HandType.STRAIGHT,NUM_RANK[i],x,wildCardUsed])
+        return l
+
+a=HandGenerator(['SA', 'S2','H3','D3','S4','S5','H5'],'3')
+for x in (a.getStraightsAndFlushes()):
     print(x)
