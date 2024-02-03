@@ -12,7 +12,7 @@ class Player(object):
         self.level=level
         self.position=position
 class Desk(object):
-    def __init__(self,rank='2',mode="RankFrozen"):
+    def __init__(self,rank='2',mode="RankFrozen",port='23334'):
         #先实现只打2，先不实现
         self.rank=rank
         self.teamALevel='2'
@@ -45,7 +45,7 @@ class Desk(object):
         while(state=='fourRemains'):
             p=0
             previousHand=self.getPreviousHand(lastThreeActions)
-            legalActions=api.getHands(self.players[p],previousHand)
+            legalActions=api.getHands(self.players[p],previousHand)#上家手牌和自己所有手牌
             """
             send legalActions to player[p]
             currentAction=translateToOurs(receive( player[p]'s action))
