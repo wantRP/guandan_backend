@@ -28,6 +28,7 @@ RANK_WITHOUT_WILD=[ 'A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', 
 RANK_NUM={'R': 17, 'B': 16, 'L': 15, 'A': 13, 'K': 12, 'Q': 11, 'J': 10, 'T': 9, 
            '9': 8, '8': 7, '7': 6, '6': 5, '5': 4, '4': 3, '3': 2, '2': 1,'1':0}
 NUM_RANK={17: 'R', 16: 'B', 15: 'L', 13: 'A', 12: 'K', 11: 'Q', 10: 'J', 9: 'T', 8: '9', 7: '8', 6: '7', 5: '6', 4: '5', 3: '4', 2: '3', 1: '2', 0: 'A'}
+
 class HandType(Enum):
     PASS = 0
     SINGLE = 1
@@ -45,6 +46,35 @@ class HandType(Enum):
     BOMB_8=13# 8
     BOMB_KING=14# 4 ok
     INVALID=15
+OURS_BLACK_BOX={
+    HandType.PASS:"PASS",
+    HandType.SINGLE :"Single",
+    HandType.PAIR :"Pair",
+    HandType.TRIPLE_OF_PAIR:"ThreePair",
+    HandType.TRIPLE:"Trips",
+    HandType.PLATE:"TwoTrips",
+    HandType.FULLHOUSE:"ThreeWithTwo",
+    HandType.STRAIGHT:"Straight",
+    HandType.BOMB_4:"Bomb",
+    HandType.BOMB_5:"Bomb",
+    HandType.FLUSH:"StraightFlush",
+    HandType.BOMB_6:"Bomb",
+    HandType.BOMB_7:"Bomb",
+    HandType.BOMB_8:"Bomb",
+    HandType.BOMB_KING:"Bomb"
+}
+BLACK_BOX_OURS={
+    'PASS': HandType.PASS,
+    'Single': HandType.SINGLE,
+    'Pair': HandType.PAIR,
+    'ThreePair': HandType.TRIPLE_OF_PAIR,
+    'Trips': HandType.TRIPLE,
+    'TwoTrips': HandType.PLATE,
+    'ThreeWithTwo': HandType.FULLHOUSE,
+    'Straight': HandType.STRAIGHT,
+    'Bomb': HandType.BOMB_4,
+    'StraightFlush': HandType.FLUSH
+}
 
 Hand = namedtuple('Hand', ['handType', 'rank', 'cards','wildCardUsed'])
 class HandGenerator(object):
@@ -70,7 +100,23 @@ class HandGenerator(object):
                    self.pointedCards[0]=self.pointedCards[0]+[x]
            pass
         self.pointedCount=[len(x) for x in self.pointedCards]
-       
+    @staticmethod
+    def translateToBlackBoxForm(a:list)->list:
+        a[0]=OURS_BLACK_BOX[a[0]]
+        return a[-1]
+    @staticmethod
+    def translateToOurForm(a:list)->list:
+        if(a[0]=='Bomb'):
+            if(len(a[2])==4): a[0]==HandType.BOMB_4
+            if (a[2][0]=='SB' or a[2][1]=='SB' or a[2][2]=='SB' or a[2][3]=='SB'):
+                a[0]=HandType.BOMB_KING
+            if(len(a[2])==4): a[0]==HandType.BOMB_5
+            if(len(a[2])==4): a[0]==HandType.BOMB_6
+            if(len(a[2])==4): a[0]==HandType.BOMB_7
+            if(len(a[2])==4): a[0]==HandType.BOMB_8
+            return a
+        a[0]=BLACK_BOX_OURS[a[0]]
+        return a
     @staticmethod
     def compareSingle(a,b)->bool:
         if(RANK_NUM[a[1]]<RANK_NUM[b[1]]):
@@ -524,7 +570,7 @@ class HandGenerator(object):
         l.extend(self.getBomb8())
         return l
 a=HandGenerator(['SA', 'S2','HR','HR'],'3')
-def getMoves(handCards:list[str],previousHand:list,level='2'):
+def _getMoves(self,handCards:list[str],previousHand:list,level='2'):
     moves=[['PASS','PASS',['PASS'],0]]
     flushes=[]
     rivalType=previousHand[0]#上家的牌型
@@ -543,7 +589,7 @@ def getMoves(handCards:list[str],previousHand:list,level='2'):
     if(rivalType==HandType.BOMB_KING):
         return [['PASS','PASS',['PASS'],0]]
     moves.extend(hg.getBombKing())#更差的牌组可以下放了
-    
+
     if(rivalType==HandType.BOMB_8):
         moves.extend([x for x in hg.getBomb8() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
         return moves
@@ -580,7 +626,8 @@ def getMoves(handCards:list[str],previousHand:list,level='2'):
     if(rivalType==HandType.PLATE):          moves.extend([ x for x in hg.getPlates()        if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
     if(rivalType==HandType.FULLHOUSE):      moves.extend([ x for x in hg.getFullHouse()     if RANK_NUM[x[1]]>RANK_NUM[rivalRank]]   )
     return moves
-     
-
+def getHands(self,handCards:list[str],previousHand:list,level='2'):
+    l=_getMoves(handCards,previousHand,level)
+    return [self.translateActionToBlackBoxForm(x) for x in l]
 for x in (a.getPairs()):
     print(x)
