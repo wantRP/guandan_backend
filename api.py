@@ -48,17 +48,17 @@ class HandType(Enum):
 
 Hand = namedtuple('Hand', ['handType', 'rank', 'cards','wildCardUsed'])
 class HandGenerator(object):
-   #先生成所有组合，再根据大小过滤
     def __init__(self, handCards,level='2'):
+        #初始化后，会把牌升序排序，，级牌在普通牌后，红心级牌在普通级牌后。注意，大小王在级牌后
         self.handCards = handCards
         self.level=level
         self.wildCount=0
         self.wildCard='H'+self.level
-        self.nonWildCards:list[str]=[]
+        self.nonWildCards:list[str]=[]#非万能牌的列表
         self.pairs=None
         self.triples=None
-        self.pointedCards:list[list[str]] = [[] for _ in range(14)]
-        self.handCards=self.sortHand(handCards)
+        self.pointedCards:list[list[str]] = [[] for _ in range(14)]#A23 ... QKA排列，级牌按实际点数
+        self.handCards=self.sortHand(handCards) #升序的手牌的列表
         for x in self.handCards:
            if(x==self.wildCard):
                self.wildCount=self.wildCount+1
@@ -69,7 +69,7 @@ class HandGenerator(object):
                if(x[1]=='A'):
                    self.pointedCards[0]=self.pointedCards[0]+[x]
            pass
-        self.pointCount=[len(x) for x in self.pointedCards]
+        self.pointedCount=[len(x) for x in self.pointedCards]
        
     @staticmethod
     def compareSingle(a,b)->bool:
@@ -102,7 +102,7 @@ class HandGenerator(object):
     @classmethod
     def getHandType(self,a:list[str])->str:#H5 etc
         """
-        升序排列的牌组，级牌不特殊表示
+        废弃的方法！升序排列的牌组，级牌不特殊表示
         SB HR
         """
         level=self.level
@@ -257,13 +257,13 @@ class HandGenerator(object):
                     continue
                 i=i+1
         i=0
-        #FIXME
         for i in range(len(self.nonWildCards)):
             for j in range(i+1,len(self.nonWildCards)):
                 if self.nonWildCards[i][1] == self.nonWildCards[j][1]:
-                    l=l+[Hand(HandType.PAIR,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[j]],0)]
+                    l=l+[HandType.PAIR,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[j]],0]
                 else:
                     break
+        l=[x for x in dict.fromkeys(l)]
         return l
     def getTriples(self)->list:
         l=[]
@@ -372,31 +372,31 @@ class HandGenerator(object):
         wildCount=self.wildCount
         if(wildCount==2):
             for i in range(13):
-                if(self.pointCount[i]>=1 and self.pointCount[i+1]>=3): #A**BBB
+                if(self.pointedCount[i]>=1 and self.pointedCount[i+1]>=3): #A**BBB
                     a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],1))]
                     b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],3))]
                     l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+[self.wildCard,self.wildCard]+x[1],2] for x in product(a,b)]
-                if(self.pointCount[i]>=3 and self.pointCount[i+1]>=3): #AAAB**
+                if(self.pointedCount[i]>=3 and self.pointedCount[i+1]>=3): #AAAB**
                     a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],3))]
                     b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],1))]
                     l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+x[1]+[self.wildCard,self.wildCard],2] for x in product(a,b)]
-                if(self.pointCount[i]>=2 and self.pointCount[i+1]>=2): #AA**BB
+                if(self.pointedCount[i]>=2 and self.pointedCount[i+1]>=2): #AA**BB
                     a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],2))]
                     b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],2))]
                     l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+[self.wildCard,self.wildCard]+x[1],2] for x in product(a,b)]
             wildCount=1
         if(wildCount==1):
             for i in range(13):
-                if(self.pointCount[i]>=2 and self.pointCount[i+1]>=3): #AA*BBB
+                if(self.pointedCount[i]>=2 and self.pointedCount[i+1]>=3): #AA*BBB
                     a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],1))]
                     b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],3))]
                     l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+[self.wildCard]+x[1],1] for x in product(a,b)]
-                if(self.pointCount[i]>=3 and self.pointCount[i+1]>=2): #AAABB*
+                if(self.pointedCount[i]>=3 and self.pointedCount[i+1]>=2): #AAABB*
                     a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],3))]
                     b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],1))]
                     l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+x[1]+[self.wildCard],1] for x in product(a,b)]
         for i in range(13):
-            if(self.pointCount[i]>=3 and self.pointCount[i+1]>=3): 
+            if(self.pointedCount[i]>=3 and self.pointedCount[i+1]>=3): 
                 a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],1))]
                 b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],3))]
                 l=l+[[HandType.TRIPLE_OF_PAIR,self.pointCards[i][0][1],x[0]+x[1],0] for x in product(a,b)]
@@ -413,23 +413,44 @@ class HandGenerator(object):
         return l
     def getStraightsAndFlushes(self)->list:
         l=[]
+        conditions2=[
+            [True, True, False, False, False],
+            [True, False, True, False, False],
+            [True, False, False, True, False],
+            [True, False, False, False, True],
+            [False, True, True, False, False],
+            [False, True, False, True, False],
+            [False, True, False, False, True],
+            [False, False, True, True, False],
+            [False, False, True, False, True],
+            [False, False, False, True, True],
+        ]
+        conditions1=[
+            [True, False, False, False, False],
+            [False, True, False, False, False],
+            [False, False, True, False, False],
+            [False, False, False, True, False],
+            [False, False, False, False, True],
+        ]
+        conditions=[
+            [False, False, False, False, False]
+        ]
+        if(self.wildCount==1):  conditions.extend(conditions1)
+        if(self.wildCount==2):  conditions.extend(conditions2)
         for i in range(10):
-            wildCardUsed=0
-            legal=True
-            for j in range(5):
-
-                if(self.pointCount[i+j]==0):
-                    wildCardUsed=wildCardUsed+1
-                    if(wildCardUsed>self.wildCount):
+            for mask in conditions:
+                legal=True
+                for j in range(5): 
+                    if(self.pointedCount[i+j]==0 and mask[j]==False):
                         legal=False
                         break
-            if(legal):
+                if(legal==False): continue
                 straights:list[str]=[["0"]]
-                for j in range(i,i+5):
-                    if(self.pointCount[j]==0):
+                for k in range(5):
+                    if(mask[k]==True):
                         straights=[x[0]+[x[1]] for x in product(straights,[self.wildCard])] 
                     else:
-                        straights=[x[0]+[x[1]] for x in product(straights,self.pointedCards[j] )]
+                        straights=[x[0]+[x[1]] for x in product(straights,self.pointedCards[i+k] )]
                 for x in straights:
                     x=x[1:]
                     pattern=None
@@ -441,9 +462,125 @@ class HandGenerator(object):
                             flush=False
                             break
                         pattern=y[0]
-                    l.append([HandType.FLUSH if flush else HandType.STRAIGHT,NUM_RANK[i],x,wildCardUsed])
+                    l.append([HandType.FLUSH if flush else HandType.STRAIGHT,NUM_RANK[i],x,sum(mask)])
         return l
+    def getBomb4(self)->list:
+        l=[]
+        for i in range(1,14):
+            for j in range(self.wildCount+1):
+                if(self.pointedCount[i]+j>=4):
+                    for x in dict.fromkeys(combinations(self.pointedCards[i],j)):
+                        l.append([HandType.BOMB_4,NUM_RANK[i],list(x)+[self.wildCard]*j,j])
+        return l
+    def getBomb5(self)->list:
+        l=[]
+        for i in range(1,14):
+            for j in range(self.wildCount+1):
+                if(self.pointedCount[i]+j>=5):
+                    for x in dict.fromkeys(combinations(self.pointedCards[i],j)):
+                        l.append([HandType.BOMB_5,NUM_RANK[i],list(x)+[self.wildCard]*j,j])
+        return l
+    def getBomb6(self)->list:
+        l=[]
+        for i in range(1,14):
+            for j in range(self.wildCount+1):
+                if(self.pointedCount[i]+j>=6):
+                    for x in dict.fromkeys(combinations(self.pointedCards[i],j)):
+                        l.append([HandType.BOMB_6,NUM_RANK[i],list(x)+[self.wildCard]*j,j])
+        return l
+    def getBomb7(self)->list:
+        l=[]
+        for i in range(1,14):
+            for j in range(self.wildCount+1):
+                if(self.pointedCount[i]+j>=7):
+                    for x in dict.fromkeys(combinations(self.pointedCards[i],j)):
+                        l.append([HandType.BOMB_7,NUM_RANK[i],list(x)+[self.wildCard]*j,j])
+        return l
+    def getBomb8(self)->list:
+        l=[]
+        for i in range(1,14):
+            for j in range(self.wildCount+1):
+                if(self.pointedCount[i]+j>=8):
+                    for x in dict.fromkeys(combinations(self.pointedCards[i],j)):
+                        l.append([HandType.BOMB_8,NUM_RANK[i],list(x)+[self.wildCard]*j,j])
+        return l
+    def getBombKing(self)->list:
+        if(len(self.handCards)>=4 and self.handCards[-1]==self.handCards[-2]=='HR' and self.handCards[-3]==self.handCards[-4]=='SB'):
+            return [HandType.BOMB_KING,'B',['SB','SB','HR','HR'],0]
+        return []
+    def getAll(self)->list:
+        l=[]
+        l.extend(self.getSingles())
+        l.extend(self.getPairs())
+        l.extend(self.getTriples())
+        l.extend(self.getTripleOfPairs())
+        l.extend(self.getPlates())
+        l.extend(self.getFullHouse())
+        l.extend(self.getStraightsAndFlushes())
+        l.extend(self.getBomb4())
+        l.extend(self.getBomb5())
+        l.extend(self.getBomb6())
+        l.extend(self.getBomb7())
+        l.extend(self.getBomb8())
+        return l
+a=HandGenerator(['SA', 'S2','HR','HR'],'3')
+def getMoves(handCards:list[str],previousHand:list,level='2'):
+    moves=[['PASS','PASS',['PASS'],0]]
+    flushes=[]
+    rivalType=previousHand[0]#上家的牌型
+    rivalRank=previousHand[1] #上家牌的点数
+    hg=HandGenerator(handCards,level)
+    if(rivalType==HandType.PASS):
+            moves=hg.getAll()
+            return moves
+    if(rivalType==HandType.STRAIGHT): #特殊处理，先计算出同花顺，得到所有炸弹类牌和普通顺子后在函数末尾返回
+        straightsAndFlushes=hg.getStraightsAndFlushes()
+        for x in straightsAndFlushes:
+            if(x[0]==HandType.FLUSH):
+                flushes.append(x)
+            elif(RANK_NUM[x[1]]>RANK_NUM[rivalRank]):
+                moves.append(x)
+    if(rivalType==HandType.BOMB_KING):
+        return [['PASS','PASS',['PASS'],0]]
+    moves.extend(hg.getBombKing())#更差的牌组可以下放了
+    
+    if(rivalType==HandType.BOMB_8):
+        moves.extend([x for x in hg.getBomb8() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+        return moves
+    moves.extend(hg.getBomb8())
 
-a=HandGenerator(['SA', 'S2','H3','D3','S4','S5','H5'],'3')
-for x in (a.getStraightsAndFlushes()):
+    if(rivalType==HandType.BOMB_7):
+        moves.extend([x for x in hg.getBomb7() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+        return moves
+    moves.extend(hg.getBomb7())
+
+    if(rivalType==HandType.BOMB_6):
+        moves.extend([x for x in hg.getBomb6() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+        return moves
+    moves.extend(hg.getBomb6())
+
+    if(rivalType==HandType.FLUSH):  
+        moves.extend([x for x in flushes if RANK_NUM[x[1]]>RANK_NUM[rivalRank]])
+    moves.extend(flushes)
+
+    if(rivalType==HandType.BOMB_5):  
+        moves.extend([x for x in hg.getBomb5() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+        return moves
+    moves.extend(hg.getBomb5())
+
+    if(rivalType==HandType.BOMB_4):         
+        moves.extend([x for x in hg.getBomb4() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+        return moves
+    moves.extend(hg.getBomb4())
+
+    if(rivalType==HandType.SINGLE):         moves.extend([ x for x in hg.getSingles()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+    if(rivalType==HandType.PAIR):           moves.extend([ x for x in hg.getPairs()         if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+    if(rivalType==HandType.TRIPLE_OF_PAIR): moves.extend([ x for x in hg.getTripleOfPairs() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+    if(rivalType==HandType.TRIPLE):         moves.extend([ x for x in hg.getTriples()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+    if(rivalType==HandType.PLATE):          moves.extend([ x for x in hg.getPlates()        if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+    if(rivalType==HandType.FULLHOUSE):      moves.extend([ x for x in hg.getFullHouse()     if RANK_NUM[x[1]]>RANK_NUM[rivalRank]]   )
+    return moves
+     
+
+for x in (a.getPairs()):
     print(x)
