@@ -34,6 +34,8 @@ class Desk(object):
                 return a[i]
         return PASS
     def runPlay(self):
+        state='waiting'
+        #connect to four actors
         state='fourRemains'
         fullDeck=api.FULL_DECK
         random.shuffle(fullDeck)
