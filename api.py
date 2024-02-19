@@ -279,10 +279,10 @@ class HandGenerator(object):
         gotWild=False
         for x in self.handCards:
             if(x!=self.wildCard):
-                l=l+[Hand(HandType.SINGLE,x[1],[x],0)]
+                l.append([HandType.SINGLE,x[1],[x],0])
             elif gotWild==False:
                 for y in RANK_WITHOUT_WILD:
-                    l=l+[Hand(HandType.SINGLE,y,[x],1)]
+                    l.append([HandType.SINGLE,y,[x],1])
                 gotWild=True
         return l
     def getPairs(self)->list:
@@ -290,14 +290,14 @@ class HandGenerator(object):
         wildCount=self.wildCount
         if(wildCount==2):
             for x in RANK_WITHOUT_WILD:
-                l=l+[Hand(HandType.PAIR,x,[self.wildCard,self.wildCard],2)]
+                l=l.append([HandType.PAIR,x,[self.wildCard,self.wildCard],2])
             wildCount=1
         if(wildCount==1):
             i=0
             while(i<=len(self.nonWildCards)-1):
                 if(RANK_NUM[self.nonWildCards[i][1]]>=RANK_NUM['B']):
                     break
-                l=l+[Hand(HandType.PAIR,self.nonWildCards[i][1],[self.nonWildCards[i],self.wildCard],1)]
+                l.append([HandType.PAIR,self.nonWildCards[i][1],[self.nonWildCards[i],self.wildCard],1])
                 if(i<=len(self.nonWildCards)-2 and self.nonWildCards[i]==self.nonWildCards[i+1]):
                     i=i+2 #skip the same suits
                     continue
@@ -306,10 +306,11 @@ class HandGenerator(object):
         for i in range(len(self.nonWildCards)):
             for j in range(i+1,len(self.nonWildCards)):
                 if self.nonWildCards[i][1] == self.nonWildCards[j][1]:
-                    l=l+[HandType.PAIR,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[j]],0]
+                    l.append([HandType.PAIR,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[j]],0])
                 else:
                     break
-        l=[x for x in dict.fromkeys(l)]
+        #print(l)
+        #l=[x for x in dict.fromkeys(l)]
         return l
     def getTriples(self)->list:
         l=[]
@@ -319,7 +320,7 @@ class HandGenerator(object):
             while(i<=len(self.nonWildCards)-1):
                 if(RANK_NUM[self.nonWildCards[i][1]]>=RANK_NUM['B']):
                     break
-                l=l+[Hand(HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.wildCard,self.wildCard],2)]
+                l.append([Hand(HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.wildCard,self.wildCard],2)])
                 if(i<=len(self.nonWildCards)-2 and self.nonWildCards[i]==self.nonWildCards[i+1]):
                     i=i+2
                     continue
@@ -331,18 +332,18 @@ class HandGenerator(object):
                 for j in range(i+1,len(self.nonWildCards)):
                     if(RANK_NUM[self.nonWildCards[i][1]]>=RANK_NUM['B']): break
                     if self.nonWildCards[i][1] == self.nonWildCards[j][1]:
-                        l=l+[Hand(HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[j],self.wildCard],0)]
+                        l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[j],self.wildCard],0])
                     else:
                         break
             while i < len(self.nonWildCards) - 1:
                 if(RANK_NUM[self.nonWildCards[i][1]]>=RANK_NUM['B']): break
                 if self.nonWildCards[i][1] == self.nonWildCards[i+1][1]:
-                    l=l+[Hand(HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[i+1],self.wildCard],1)]
+                    l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[i+1],self.wildCard],1])
                 i=i+1
         i=0
         while(i<=len(self.nonWildCards)-3):
             if self.nonWildCards[i][1] == self.nonWildCards[i+1][1] == self.nonWildCards[i+2][1]:
-                l=l+[Hand(HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i+1],self.nonWildCards[i+2],self.wildCard],0)]
+                l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i+1],self.nonWildCards[i+2],self.wildCard],0])
             i=i+1
         self.pairs=l
         return l
@@ -624,10 +625,9 @@ def _getMoves(self,handCards:list[str],previousHand:list,level='2'):
     if(rivalType==HandType.TRIPLE_OF_PAIR): moves.extend([ x for x in hg.getTripleOfPairs() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
     if(rivalType==HandType.TRIPLE):         moves.extend([ x for x in hg.getTriples()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
     if(rivalType==HandType.PLATE):          moves.extend([ x for x in hg.getPlates()        if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
-    if(rivalType==HandType.FULLHOUSE):      moves.extend([ x for x in hg.getFullHouse()     if RANK_NUM[x[1]]>RANK_NUM[rivalRank]]   )
+    if(rivalType==HandType.FULLHOUSE):      moves.extend([ x for x in hg.getFullHouse()     if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
     return moves
 def getHands(self,handCards:list[str],previousHand:list,level='2'):
     l=_getMoves(handCards,previousHand,level)
     return [self.translateActionToBlackBoxForm(x) for x in l]
-for x in (a.getPairs()):
-    print(x)
+#print(a.getPairs())
