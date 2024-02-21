@@ -30,6 +30,6 @@ class Action(object):
     def parse(self, msg):
         self.action = msg["actionList"]
         self.act_range = msg["indexRange"]
-        print(self.action)
-        print("可选动作范围为：0至{}".format(self.act_range))
+        #print(self.action)
+        #print("可选动作范围为：0至{}".format(self.act_range))
         return randint(0, self.act_range)

@@ -19,6 +19,7 @@ class Player(object):
         self.level=level
         self.position=position
         self.sock=None
+        self.lastAction=None
 
 class Desk(object):
     def __init__(self,rank='2',mode="RankFrozen",port='23334'):
@@ -27,13 +28,14 @@ class Desk(object):
         self.teamALevel='2'
         self.teamBLevel='2'
         self.players=[Player(Position.NORTH),Player(Position.WEST),Player(Position.SOUTH),Player(Position.EAST)]
+        self.hasCards=[True,True,True,True]
         self.player_num=0
         self.state=None
-        self.lastActions:list[list]=None
+        self.lastActions:list[list]=[None, None, None]
         self.cur_player=-1
         self.shuffle=False
-        self.cur_level='2'
-        self.order=[]
+        self.level='2'
+        self.finished=[]
         self.total_game=1
     
     def begin(self):
@@ -41,40 +43,41 @@ class Desk(object):
         self.state='fourRemains'
 
         #和client连接
-        asyncio.get_event_loop().run_until_complete(websockets.serve(self.playgame, 'localhost', 23456))
+        asyncio.get_event_loop().run_until_complete(websockets.serve(self.initDesk, 'localhost', 23456))
         asyncio.get_event_loop().run_forever()
-    def setLevel(self):
+    def updateLevel(self):
         self.rank='2'
         self.teamALevel='2'
         self.teamBLevel='2'
-    def tribute(self):
+    def beginTribute(self):
         pass
-    async def playgame(self, websocket, path, shuffle=True):
+    async def initDesk(self, websocket, path, shuffle=True):
         self.players[self.player_num].sock = websocket
         num = self.player_num
         self.player_num += 1
-
         if self.player_num == 4:    #连接的client达到4个
             while(self.total_game>0):
             
                 self.shuffle_deck()      #洗牌
-                self.lastActions=[PASS, PASS, PASS]
+                self.lastActions=[None, None, None]
                 self.cur_player=0       #初始玩家根据什么规定？
                 self.shuffle = True
-                self.order = []
-                self.total_game -= 1
+                self.finished = []
+                
                 #升级什么的
-                for x in range(4):
-                    await self.send_begin_deck(self.players[x].sock, x)
-                #await self.send_begin_deck(websocket, num)     #向当前玩家发送初始手牌
-                await self.runPlay(websocket, 0)
-                self.setLevel()
-                self.tribute()
+                for x in range(4): #向四位玩家发送初始手牌
+                    await self.notify_begin(self.players[x].sock, x) 
+                
+                await self.runPlay_4( 0)
+                self.total_game -= 1
+                self.updateLevel()
+                self.beginTribute()
+            print("完全结束")
         else:
             
             await asyncio.Future()
 
-    def shuffle_deck(self):
+    def shuffle_deck(self)->None:
         """随机发牌"""
         fullDeck=api.FULL_DECK
         random.shuffle(fullDeck)
@@ -83,18 +86,19 @@ class Desk(object):
         self.players[2].deck = fullDeck[26:39]
         self.players[3].deck = fullDeck[39:52]
 
-    async def send_begin_deck(self, websocket, num):
-        """将初始手牌信息发送给client"""
+    async def notify_begin(self, websocket, num):
+        """通知小局开始，将初始手牌信息发送给单个client"""
         
         await websocket.send(json.dumps({"type": "notify",
                                          "stage": "beginning",
                                          "handCards": self.players[num].deck,
                                          "myPos": num}))
-        print(num)
+        #print(num)
 
     def sendState(self):
         pass
-
+    
+    @staticmethod
     def getPreviousHand(a):
         i=len(a)-1
         while(i>=0):
@@ -104,57 +108,70 @@ class Desk(object):
                 return a[i]
         return PASS
 
-    async def runPlay(self, websocket, num):
-        print("runplay")
+    async def runPlay_4(self, begin_num=0):
+        print("server start")
+        num=begin_num
         while True:
-            previousHand = self.getPreviousHand(self.lastActions)
-            legalActions = api.getHands(self.players[num].deck, api.HandGenerator.translateToOurForm(previousHand))
-            self.send_legalactions(websocket, num, legalActions)
-            message = await websocket.recv()
-            action = legalActions[json.loads(str(message))["actIndex"]]
-            self.send_notice_action(num, action)
-            if action != PASS:
-                for card in action[2]:
-                    self.players[num].deck.remove(card)
-            if len(self.players[num].deck) == 0:
-                self.order.append(num)
-                if len(self.order) == 3 or self.order == [0, 2] or self.order == [2, 0] or self.order == [1, 3] or self.order == [3, 1]:
-                    self.send_episode_over(num) 
-                    break
-            self.lastActions = self.lastActions[1:] + [action]
-            all_pass = True
-            for i in range(0, 4-len(self.order)):
-                if self.lastActions[-1-i] != PASS:
-                    all_pass = False
-                    break
-            if all_pass == True:
-                self.lastActions = [PASS for _ in range(3-len(self.order))]
-                self.cur_player = (self.order[-1]+2)%4
-            else:
-                for i in range(1, 4):
-                    if len(self.players[(num+i)%4].deck) > 0:
-                        self.cur_player = (num+i)%4
+            for i in range(4):
+                if(self.hasCards[i]==False):
+                    continue
+                previousHand = self.getPreviousHand(self.lastActions)
+                if(previousHand==None):
+                    previousHand=PASS
+                legalActions = api.getHands(self.players[i].deck, api.HandGenerator.translateToOurForm(previousHand),self.level)
+                #print("legalactions:\n",legalActions)
+                await self.send_legalActions( i, legalActions)
+                message = await self.players[i].sock.recv()
+                action = legalActions[json.loads(str(message))["actIndex"]]
+                await self.send_notice_action(i, action)
+                if action != PASS:
+                    for card in action[2]: 
+                        self.players[i].deck.remove(card)
+                if len(self.players[i].deck) == 0:
+                    self.finished.append(i)
+                    self.hasCards[i]=False
+                    if len(self.finished) == 3 or self.finished == [0, 2] or self.finished == [2, 0] or self.finished == [1, 3] or self.finished == [3, 1]:
+                        await self.send_episode_over() 
+                        return
+                self.lastActions = self.lastActions[1:] + [action]
+                """
+                all_pass = True
+                for i in range(0, 4-1-len(self.finished)):
+                    if self.lastActions[-1-i] != PASS:
+                        all_pass = False
                         break
-
+                if all_pass == True:
+                    self.lastActions = [PASS for _ in range(3-len(self.finished))]
+                    self.cur_player = (self.finished[-1]+2)%4
+                else:
+                    for i in range(1, 4):
+                        if len(self.players[(num+i)%4].deck) > 0:
+                            self.cur_player = (num+i)%4
+                            break
+                """
     #出牌阶段，通知当前玩家做出动作
-    async def send_legalactions(self, websocket, num, legalActions):
-        print("act")
+    async def send_legalActions(self, num, legalActions):
+        #print("act")
         publicinfo = [{}, {}, {}, {}]
         publicinfo[num] = {'rest': len(self.players[num].deck), 'playArea': None}
+        #set publicinfo
         k = 0
         for i in range(1, 4):
             if len(self.players[(num+i)%4].deck) != 0:
                 publicinfo[(num+i)%4] = {'rest': len(self.players[(num+i)%4].deck), 
                                          'playArea': self.lastActions[k]}
-                k += 1
             else:
-                publicinfo[(num+i)%4] = {'rest': 0, 
+                publicinfo[i] = {'rest': 0, 
                                          'playArea': None}
+        publicinfo[num] = {'rest': len(self.players[num].deck), 'playArea': None}
+        #set end
         curpos = -1
         curaction = None
         greateraction = None
         greaterpos = -1
         all_pass = True
+        greateraction = self.getPreviousHand(self.lastActions)
+
         for action in self.lastActions:
             if action != PASS:
                 all_pass = False
@@ -178,14 +195,12 @@ class Desk(object):
                     gpos -= 1
                 k += 1
             greaterpos = (num+k-1)%4
-
-
-        await websocket.send(json.dumps({"type": "act",
+        await self.players[num].sock.send(json.dumps({"type": "act",
                                          "handsCards": self.players[num].deck,
                                          "publicInfo": publicinfo,
                                          "selfRank": self.players[num].level,
                                          "oppoRank": self.players[(num+1)%4].level,
-                                         "curRank": self.cur_level,
+                                         "curRank": self.level,
                                          "stage": "play",
                                          "curPos": curpos,
                                          "curAction": curaction,
@@ -196,6 +211,7 @@ class Desk(object):
 
     #出牌阶段，通知其他玩家做出的动作
     async def send_notice_action(self, num, action):
+        """出牌阶段，通知所有四个玩家当前玩家的动作"""
         greaterpos = num
         greateraction = action
         if action == PASS:
@@ -203,7 +219,7 @@ class Desk(object):
             k = 1
             for action_ in self.lastActions:
                 if action_ != PASS:
-                    greateraction = api.HandGenerator.translateToBlackBoxForm(action_)
+                    #greateraction = api.HandGenerator.translateToBlackBoxForm(action_)
                     gpos = k
                 k += 1
             k = 1
@@ -222,17 +238,18 @@ class Desk(object):
                                             "greaterAction": greateraction}))
     
     #通知所有玩家小局结束
-    async def send_episode_over(self, num):
+    async def send_episode_over(self):
+        """通知所有玩家小局结束"""
         restcards = []
         for i in range(0, 4):
             if len(self.players[i].deck) > 0:
-                self.order.append(i)
-                restcards.append([len(self.players[i].deck), self.players[i].deck])
+                self.finished.append(i)
+                restcards.append([i, self.players[i].deck])
         for i in range(0, 4):
             await self.players[i].sock.send(json.dumps({"type": "notify",
                                             "stage": "episodeOver",
-                                            "order": self.order,
-                                            "curRank": self.cur_level,
+                                            "order": self.finished,
+                                            "curRank": self.level,
                                             "restCards": restcards}))
 
 desk = Desk()

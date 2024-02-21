@@ -31,7 +31,8 @@ class ExampleClient(WebSocketClient):
         if "actionList" in message:                                           # 需要做出动作选择时调用动作对象进行解析
             act_index = self.action.parse(message)
             self.send(json.dumps({"actIndex": act_index}))
-
+            #print("client4打出了",act_index,"号动作：",message["actionList"][act_index])
+            print(message["publicInfo"])
 
 if __name__ == '__main__':
     try:

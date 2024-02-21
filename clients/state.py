@@ -116,7 +116,7 @@ class State(object):
         请仅在对应的JSON格式下访问对应的实例属性，若此时访问其他属性则很有可能是之前处理时未更新的实例属性，不具有准确性。
         """
         # TODO: 选手可自行做出其他处理
-        print("{}号位打出{}， 最大动作为{}号位打出的{}".format(self._curPos, self._curAction, self._greaterPos, self._greaterAction))
+        print("{}号位打出了{}， 最大动作为{}号位打出的{}".format(self._curPos, self._curAction, self._greaterPos, self._greaterAction))
 
     def notify_tribute(self):
         """
@@ -241,10 +241,8 @@ class State(object):
         请仅在对应的JSON格式下访问对应的实例属性，若此时访问其他属性则很有可能是之前处理时未更新的实例属性，不具有准确性。
         """
         # TODO: 选手可自行做出其他处理
-        print("我方等级：{}， 对方等级：{}， 当前等级{}".format(self._selfRank, self._oppoRank, self._curRank))
-        print("当前动作为{}号-动作{}， 最大动作为{}号-动作{}，目前可选动作如下：".format(
-            self._curPos, self._curAction, self._greaterPos, self._greaterAction)
-        )
+        #print("我方等级：{}， 对方等级：{}， 当前等级{}".format(self._selfRank, self._oppoRank, self._curRank))
+        #print("该我出牌了，当前动作为{}号-动作{}， 最大动作为{}号-动作{}。".format(self._curPos, self._curAction, self._greaterPos, self._greaterAction))
 
     def act_tribute(self):
         """
