@@ -28,7 +28,7 @@ RANK_WITHOUT_WILD=[ 'A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', 
 RANK_NUM={'R': 17, 'B': 16, 'L': 15, 'A': 13, 'K': 12, 'Q': 11, 'J': 10, 'T': 9, 
            '9': 8, '8': 7, '7': 6, '6': 5, '5': 4, '4': 3, '3': 2, '2': 1,'1':0}
 NUM_RANK={17: 'R', 16: 'B', 15: 'L', 13: 'A', 12: 'K', 11: 'Q', 10: 'J', 9: 'T', 8: '9', 7: '8', 6: '7', 5: '6', 4: '5', 3: '4', 2: '3', 1: '2', 0: 'A'}
-
+PASS=['PASS','PASS',['PASS']]
 class HandType(Enum):
     PASS = 0
     SINGLE = 1
@@ -98,7 +98,6 @@ class HandGenerator(object):
                    self.pointedCards[RANK_NUM[x[1]]]=self.pointedCards[RANK_NUM[x[1]]]+[x]
                if(x[1]=='A'):
                    self.pointedCards[0]=self.pointedCards[0]+[x]
-           pass
         self.pointedCount=[len(x) for x in self.pointedCards]
     @staticmethod
     def translateToBlackBoxForm(a:list)->list:
@@ -149,135 +148,6 @@ class HandGenerator(object):
             #a=[x[0]+"A" if x[1]=="1" else x for x in a]
         return a
     #legal: player_hand_card and rival_move:can be NULL ->legal_action
-    @classmethod
-    def getHandType(self,a:list[str])->str:#H5 etc
-        """
-        废弃的方法！升序排列的牌组，级牌不特殊表示
-        SB HR
-        """
-        level=self.level
-        a=self.sortHand(a)
-        cardCount=len(a)
-        wildCard="H"+level
-        wildCount=0
-        for x in a:
-            if(x==wildCard):
-                wildCount=wildCount+1
-        points=[x[1] for x in a]
-        if(cardCount==1): return HandType.SINGLE
-        if(cardCount==2):
-            if(a[0][1]==a[1][1]): return HandType.PAIR
-            if(a[1]==wildCard):return HandType.PAIR
-            return HandType.INVALID #joker, etc
-        if(cardCount==3):
-            if(points[0]==points[1]==points[2]): return HandType.TRIPLE
-            if(wildCount==1 and points[0]==points[1]): return HandType.TRIPLE
-            if(wildCount==2 and a[2]!=level): return HandType.TRIPLE #joker
-            return HandType.INVALID
-        if(cardCount==4):
-            if(points[0]=='B' and points[1]=='B' and points[2]=='R' and points[3]=='R'): return HandType.BOMB_KING
-            if(points[0]==points[3]): return HandType.BOMB_4
-            if(points[0]==points[1]==points[2] and a[3]==wildCard):return HandType.BOMB_4
-            if(points[0]==points[1] and a[2]==a[3]==wildCard):return HandType.BOMB_4
-            return HandType.INVALID
-        if(cardCount==5):
-            if(points[0]==points[4]): return HandType.BOMB_5
-            if(points[0]==points[3] and a[4]==wildCard):return HandType.BOMB_5
-            if(points[0]==points[2] and a[3]==a[4]==wildCard):return HandType.BOMB_5
-            if(wildCount==1):
-                if(points[0]==points[1]!=points[2]):
-                    if(points[2]==points[3] or points[3]==points[4]):#AABB* or AA*JJ
-                        return HandType.FULLHOUSE
-                    else: #joker
-                        return HandType.INVALID
-                if(points[0]==points[1]==points[2] and a[4]==wildCard):return HandType.FULLHOUSE
-                return HandType.INVALID
-            if(wildCount==2): #A**JJ || AAB** that not AA**J ||  ABB**
-                if(points[3]==points[4]>=RANK_NUM['B'] or (points[0]==points[1] and a[2]!=wildCard) or points[1]==points[2]):return HandType.FULLHOUSE
-            if(points[0]==points[1] and points[3]==points[4] and (points[2]==points[1] or points[2]==points[3]) ): return HandType.FULLHOUSE         
-            #straight
-            flush=False
-            realPointHands=self.sortHand(a,level,True)
-            #duplicate in former 4 cards or joker
-            if(RANK_NUM[points[4]]>=RANK_NUM['B'] or points[0]==points[1] or points[1]==points[2] or points[2]==points[3]): return HandType.INVALID
-            if(wildCount==0):
-                if(RANK_NUM[realPointHands[4][1]] - RANK_NUM[realPointHands[0][1]]!=4 or RANK_NUM[points[4]]-RANK_NUM[points[0]]!=4): return HandType.INVALID
-                if(a[0][0]==a[1][0]==a[2][0]==a[3][0]==a[4][0]): flush=True
-            if(wildCount==1):
-                realPointHands=self.sortHand(a[:-1],level,True)#A???\*
-                if(realPointHands[0]=='1'): #special treat
-                    if(realPointHands[1]=='1'): return HandType.INVALID
-                    gap=RANK_NUM[realPointHands[2][1]]-RANK_NUM[realPointHands[1][1]]-1+RANK_NUM[realPointHands[3][1]]-RANK_NUM[realPointHands[2][1]]-1
-                    if(gap>1):return HandType.INVALID
-                    if(RANK_NUM['3']<RANK_NUM[realPointHands[1][1]]<RANK_NUM['10']): return HandType.INVALID 
-                if( RANK_NUM[realPointHands[3][1]]-RANK_NUM[realPointHands[0][1]]>4): return HandType.INVALID
-                if(a[0][0]==a[1][0]==a[2][0]==a[3][0]): flush=True
-            if(wildCard==2):
-                realPointHands=self.sortHand(a[:-2],level,True)
-                if(realPointHands[0]=='1'):
-                    if(RANK_NUM[realPointHands[2][1]]-RANK_NUM[realPointHands[1][1]]-1>2 and RANK_NUM['4']<realPointHands[1][1]<RANK_NUM['10']):return HandType.INVALID
-                if(RANK_NUM[points[2]]-RANK_NUM[points[0]]>4):return HandType.INVALID
-                if(a[0][0]==a[1][0]==a[2][0]): flush=True
-            return HandType.FLUSH if flush==True else HandType.STRAIGHT
-        #max triple pair:QQKKAA min: AA2233
-        if(cardCount==6):
-            #AAA222 KKKAAA AA2233 QQKKAA
-            if((points[0]==points[5])or (points[0]==points[4] and a[5]==wildCard) or (points[0]==points[3] and a[4]==a[5]==wildCard)):return HandType.BOMB_6
-            if(points[0]==points[3] or points[1]==points[4] or points[4]==points[5]): return HandType.INVALID
-            if(RANK_NUM[points[5]]>=RANK_NUM['B']): return HandType.INVALID
-            realPointHands=self.sortHand(a[:wildCount],level,True)
-            realPoints=[x[1] for x in realPointHands]
-            if(wildCount==0):
-                if(points[0]==points[2] and points[3]==points[5]):#maybe plate
-                    if(realPointHands[0][1]=='1'):
-                         if(realPoints[3]=='2' or realPoints[3]=='K'):
-                            return HandType.PLATE
-                         return HandType.INVALID
-                    if(RANK_NUM[points[3]]-RANK_NUM[points[2]]==1):return HandType.PLATE
-            if(wildCount==1):
-                if(points[0]==points[2] and points[3]==points[4]):#AAABB*
-                    if(RANK_NUM[points[3]]-RANK_NUM[points[2]]==1 or RANK_NUM[realPoints[3]]-RANK_NUM[realPoints[2]]==1):
-                        return HandType.PLATE
-                if(points[0]==points[1] and points[2]==points[4]):#AABBB*
-                    if(RANK_NUM[realPoints[2]]-RANK_NUM[realPoints[1]]==1 or RANK_NUM[points[2]]-RANK_NUM[points[1]]==1):
-                        return HandType.PLATE
-            if(wildCount==2):
-                gap=0
-                if(realPointHands[1]==realPointHands[3]):
-                    gap=RANK_NUM[realPoints[1]]-RANK_NUM[realPoints[0]]
-                if(realPoints[0]==realPoints[1] and realPoints[2]==realPoints[3]):
-                    gap=RANK_NUM[realPoints[2]]-RANK_NUM[realPoints[1]]
-                if(realPoints[0]==realPoints[2]):
-                    gap=RANK_NUM[realPoints[3]]-RANK_NUM[realPoints[2]]
-                if(gap==1 or gap==RANK_NUM['K']-RANK_NUM['1']):
-                    return HandType.PLATE
-            if(wildCount==0):
-                if(realPoints[0]==realPoints[1] and realPoints[2]==realPoints[3] and realPoints[4]==realPoints[5]):
-                    if(RANK_NUM[points[2]]-RANK_NUM[points[0]]-1+RANK_NUM[points[4]]-RANK_NUM[points[2]]-1==0 or  (realPoints[0]=='1' and realPoints[2]=='2' and realPoints[4]=='3')):
-                        return HandType.TRIPLE_OF_PAIR
-            if(wildCount==1):
-                if((realPoints[0]==realPoints[1] and realPoints[2]==realPoints[3]) or (realPoints[0]==realPoints[1] and realPoints[3]==realPoints[4]) or (realPoints[1]==realPoints[2] and realPoints[3]==realPoints[4])):
-                    if(RANK_NUM[points[2]]-RANK_NUM[points[0]]-1+RANK_NUM[points[4]]-RANK_NUM[points[2]]-1==0 or (realPoints[0]=='1' and realPoints[2]=='2' and realPoints[4]=='3')):
-                        return HandType.TRIPLE_OF_PAIR
-            if(wildCount==2):
-                if(realPoints[0]==realPoints[1]):#AA----
-                    if(realPoints[1]==realPoints[2]): return HandType.INVALID
-                    if(realPoints[2]==realPoints[3]):#AABB--
-                        if(RANK_NUM[realPoints[2]]-RANK_NUM[realPoints[1]]<=2 or RANK_NUM[realPoints[2]]-RANK_NUM[realPoints[1]]>=RANK_NUM['Q']-RANK_NUM['A']):
-                            return HandType.TRIPLE_OF_PAIR
-                        else:#AADD--
-                            return HandType.INVALID
-                        #AABC**
-                    if((RANK_NUM[realPoints[2]]-RANK_NUM[realPoints[1]]==1 and RANK_NUM[realPoints[3]]-RANK_NUM[realPoints[2]]==1 ) or (realPoints[0]=='1' and realPoints[2]=='Q' and realPoints[3]=='K')): return HandType.TRIPLE_OF_PAIR
-                if((realPoints[1]==realPoints[2]) or (realPoints[2]==realPoints[3])):
-                    if((RANK_NUM[realPoints[1]]-RANK_NUM[realPoints[0]]==1 and RANK_NUM[realPoints[3]]-RANK_NUM[realPoints[1]]==1 ) or (realPoints[0]=='1' and realPoints[1]=='Q' and realPoints[3]=='K')): return HandType.TRIPLE_OF_PAIR
-            return HandType.INVALID
-        if(cardCount==7):
-            if(points[0]==points[6-wildCount] and points[6-wildCount]==points[6]): return HandType.BOMB_7
-        if(cardCount==8):
-            if(points[0]==points[7-wildCount] and points[7-wildCount]==points[7]): return HandType.BOMB_8
-        return HandType.INVALID
-    
     def getSingles(self)->list:
         l=[]
         gotWild=False
@@ -293,8 +163,7 @@ class HandGenerator(object):
         l=[]
         wildCount=self.wildCount
         if(wildCount==2):
-            for x in RANK_WITHOUT_WILD:
-                l=l.append([HandType.PAIR,x,[self.wildCard,self.wildCard],2])
+            l.append([HandType.PAIR,self.level,[self.wildCard,self.wildCard],2])
             wildCount=1
         if(wildCount==1):
             i=0
@@ -305,7 +174,8 @@ class HandGenerator(object):
                 if(i<=len(self.nonWildCards)-2 and self.nonWildCards[i]==self.nonWildCards[i+1]):
                     i=i+2 #skip the same suits
                     continue
-                i=i+1
+                else:
+                    i=i+1
         i=0
         for i in range(len(self.nonWildCards)):
             for j in range(i+1,len(self.nonWildCards)):
@@ -336,20 +206,19 @@ class HandGenerator(object):
                 for j in range(i+1,len(self.nonWildCards)):
                     if(RANK_NUM[self.nonWildCards[i][1]]>=RANK_NUM['B']): break
                     if self.nonWildCards[i][1] == self.nonWildCards[j][1]:
-                        l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[j],self.wildCard],0])
+                        l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[j],self.wildCard],1])
                     else:
                         break
-            while i < len(self.nonWildCards) - 1:
-                if(RANK_NUM[self.nonWildCards[i][1]]>=RANK_NUM['B']): break
-                if self.nonWildCards[i][1] == self.nonWildCards[i+1][1]:
-                    l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[i+1],self.wildCard],1])
-                i=i+1
+            #while i < len(self.nonWildCards) - 1:
+            #    if(RANK_NUM[self.nonWildCards[i][1]]>=RANK_NUM['B']): break
+            #    if self.nonWildCards[i][1] == self.nonWildCards[i+1][1]:
+            #        l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[i+1],self.wildCard],1])
+            #    i=i+1
         i=0
         while(i<=len(self.nonWildCards)-3):
             if self.nonWildCards[i][1] == self.nonWildCards[i+1][1] == self.nonWildCards[i+2][1]:
-                l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i+1],self.nonWildCards[i+2],self.wildCard],0])
+                l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[i+1],self.nonWildCards[i+2]],0])
             i=i+1
-        self.pairs=l
         return l
     def getTripleOfPairs(self)->list:
         l=[]
@@ -401,7 +270,7 @@ class HandGenerator(object):
                     b=[list(x) for x in dict.fromkeys(combinations(pointCards[i+1],2))]
                     c=[list(x) for x in dict.fromkeys(combinations(pointCards[i+2],2))]
                     l=l+[[HandType.TRIPLE_OF_PAIR,pointCards[i][0][1],x[0]+x[1]+x[2],1] for x in product(a,b,c)]
-                if(pointCount[i]>=1 and pointCount[i+1]>=2 and pointCount[i+2]>=2): #AAB*CC
+                if(pointCount[i]>=2 and pointCount[i+1]>=1 and pointCount[i+2]>=2): #AAB*CC
                     a=[list(x) for x in dict.fromkeys(combinations(pointCards[i],2)  )]
                     b=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(pointCards[i+1],1))]
                     c=[list(x)                 for x in dict.fromkeys(combinations(pointCards[i+2],2))]
@@ -411,8 +280,9 @@ class HandGenerator(object):
                     b=[list(x) for x in dict.fromkeys(combinations(pointCards[i+1],2))]
                     c=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(pointCards[i+2],1))]
                     l=l+[[HandType.TRIPLE_OF_PAIR,pointCards[i][0][1],x[0]+x[1]+x[2],1] for x in product(a,b,c)]
+            wildCount=0
         for i in range(12):
-            if(pointCount[i]>=2 and pointCount[i+1]>=2 and pointCount[i+2]>=2): #A*BBCC
+            if(pointCount[i]>=2 and pointCount[i+1]>=2 and pointCount[i+2]>=2):
                 a=[list(x) for x in dict.fromkeys(combinations(pointCards[i],2))]
                 b=[list(x) for x in dict.fromkeys(combinations(pointCards[i+1],2))]
                 c=[list(x) for x in dict.fromkeys(combinations(pointCards[i+2],2))]
@@ -424,43 +294,43 @@ class HandGenerator(object):
         if(wildCount==2):
             for i in range(13):
                 if(self.pointedCount[i]>=1 and self.pointedCount[i+1]>=3): #A**BBB
-                    a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],1))]
+                    a=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i],1))]
                     b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],3))]
-                    l=l+[[HandType.TRIPLE_OF_PAIR,self.pointedCards[i][0][1],x[0]+[self.wildCard,self.wildCard]+x[1],2] for x in product(a,b)]
+                    l=l+[[HandType.PLATE,self.pointedCards[i][0][1],x[0]+[self.wildCard,self.wildCard]+x[1],2] for x in product(a,b)]
                 if(self.pointedCount[i]>=3 and self.pointedCount[i+1]>=3): #AAAB**
-                    a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],3))]
+                    a=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i],3))]
                     b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],1))]
-                    l=l+[[HandType.TRIPLE_OF_PAIR,self.pointedCards[i][0][1],x[0]+x[1]+[self.wildCard,self.wildCard],2] for x in product(a,b)]
+                    l=l+[[HandType.PLATE,self.pointedCards[i][0][1],x[0]+x[1]+[self.wildCard,self.wildCard],2] for x in product(a,b)]
                 if(self.pointedCount[i]>=2 and self.pointedCount[i+1]>=2): #AA**BB
-                    a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],2))]
+                    a=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i],2))]
                     b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],2))]
-                    l=l+[[HandType.TRIPLE_OF_PAIR,self.pointedCards[i][0][1],x[0]+[self.wildCard,self.wildCard]+x[1],2] for x in product(a,b)]
+                    l=l+[[HandType.PLATE,self.pointedCards[i][0][1],x[0]+[self.wildCard,self.wildCard]+x[1],2] for x in product(a,b)]
             wildCount=1
         if(wildCount==1):
             for i in range(13):
                 if(self.pointedCount[i]>=2 and self.pointedCount[i+1]>=3): #AA*BBB
-                    a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],1))]
+                    a=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i],2))]
                     b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],3))]
-                    l=l+[[HandType.TRIPLE_OF_PAIR,self.pointedCards[i][0][1],x[0]+[self.wildCard]+x[1],1] for x in product(a,b)]
+                    l=l+[[HandType.PLATE,self.pointedCards[i][0][1],x[0]+[self.wildCard]+x[1],1] for x in product(a,b)]
                 if(self.pointedCount[i]>=3 and self.pointedCount[i+1]>=2): #AAABB*
-                    a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],3))]
-                    b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],1))]
-                    l=l+[[HandType.TRIPLE_OF_PAIR,self.pointedCards[i][0][1],x[0]+x[1]+[self.wildCard],1] for x in product(a,b)]
+                    a=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i],3))]
+                    b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],2))]
+                    l=l+[[HandType.PLATE,self.pointedCards[i][0][1],x[0]+x[1]+[self.wildCard],1] for x in product(a,b)]
         for i in range(13):
             if(self.pointedCount[i]>=3 and self.pointedCount[i+1]>=3): 
-                a=[list(x)+[self.wildCard] for x in dict.fromkeys(combinations(self.pointedCards[i],1))]
+                a=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i],3))]
                 b=[list(x) for x in dict.fromkeys(combinations(self.pointedCards[i+1],3))]
-                l=l+[[HandType.TRIPLE_OF_PAIR,self.pointedCards[i][0][1],x[0]+x[1],0] for x in product(a,b)]
+                l=l+[[HandType.PLATE,self.pointedCards[i][0][1],x[0]+x[1],0] for x in product(a,b)]
         return l
     def getFullHouse(self)->list:
         l=[]
         if(self.pairs==None): self.pairs=self.getPairs()
         if(self.triples==None): self.triples=self.getTriples()
-        for i in range(self.wildCount+1):
-            triples=[x for x in self.triples if x[3]==i]
-            #for j in range(self.wildCount-i+1):
-            pairs=[x for x in self.pairs if x[3]<=self.wildCount-i ]
-            return [[HandType.FULLHOUSE,y[1],y[2].append(x[2]),x[3]+y[3]] for x in pairs for y in triples if(x[1]!=y[1])]
+        #for i in range(self.wildCount+1):
+        #    triples=[x for x in self.triples if x[3]==i]
+        #    for j in range(self.wildCount-i+1):
+        #    pairs=[x for x in self.pairs if x[3]<=self.wildCount-i ]
+        l.extend([ [HandType.FULLHOUSE, y[1], y[2]+x[2], x[3]+y[3]] for x in self.pairs for y in self.triples if(x[1]!=y[1] and x[3]+y[3]<=self.wildCount)])
         return l
     def getStraightsAndFlushes(self)->list:
         l=[]
@@ -585,7 +455,7 @@ def _getMoves(handCards:list[str],previousHand:list,level='2'):
     rivalRank=previousHand[1] #上家牌的点数
     hg=HandGenerator(handCards,level)
     if(rivalType==HandType.PASS):
-            moves=hg.getAll()
+            moves.extend(hg.getAll())
             return moves
     if(rivalType==HandType.STRAIGHT): #特殊处理，先计算出同花顺，得到所有炸弹类牌和普通顺子后在函数末尾返回
         straightsAndFlushes=hg.getStraightsAndFlushes()
@@ -634,10 +504,11 @@ def _getMoves(handCards:list[str],previousHand:list,level='2'):
     if(rivalType==HandType.PLATE):          moves.extend([ x for x in hg.getPlates()        if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
     if(rivalType==HandType.FULLHOUSE):      moves.extend([ x for x in hg.getFullHouse()     if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
     return moves
-def getHands(handCards:list[str],previousHand:list,level):
+def getHands(handCards:list[str],previousHand:list,level:str):
     """接收格式为本代码格式，发送黑盒格式"""
     l=_getMoves(handCards,previousHand,level)
     
     return [HandGenerator.translateToBlackBoxForm(x) for x in l]
 
-#print(a.getPairs())
+hg=HandGenerator(['S7', 'H2', 'C4', 'S5', 'D6', 'C5', 'SA', 'H6', 'CK', 'D5', 'S6', 'CA'] )
+#print(hg.getTripleOfPairs())
