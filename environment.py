@@ -39,7 +39,7 @@ class Desk(object):
         for x in self.players:
             x.lastAction=None
 
-    def __init__(self,rank='2',total_game=20,mode="RankFrozen",port='23334'):
+    def __init__(self,rank='2',total_game=15,mode="RankFrozen",port='23334'):
         #先实现只打2，先不实现各种模式
         self.rank=rank
         self.teamALevel='2'
@@ -157,38 +157,20 @@ class Desk(object):
                 self.lastActions = self.lastActions[1:] + [action]
                 #有一个人全部出牌：
                 if len(self.players[i].deck) == 0:
-                    
                     self.finished.append(i)
                     self.hasCards[i]=False
                     await self.runPlay_3(i)
                     return
-                    if len(self.finished) == 3 or self.finished == [0, 2] or self.finished == [2, 0] or self.finished == [1, 3] or self.finished == [3, 1]:
-                        await self.send_episode_over() 
-                        return
+            print("")
                 
-                """
-                all_pass = True
-                for i in range(0, 4-1-len(self.finished)):
-                    if self.lastActions[-1-i] != PASS:
-                        all_pass = False
-                        break
-                if all_pass == True:
-                    self.lastActions = [PASS for _ in range(3-len(self.finished))]
-                    self.cur_player = (self.finished[-1]+2)%4
-                else:
-                    for i in range(1, 4):
-                        if len(self.players[(num+i)%4].deck) > 0:
-                            self.cur_player = (num+i)%4
-                            break
-                """
     async def runPlay_3(self, finishedPos):
         print("=========3=========")
         p=finishedPos
-        lastActions=[None,None]
+        lastActions=[None,self.lastActions[-1]]
         noFollower=True
         for i in range(4):
             p=(p+1)%4
-            if(self.hasCards[p]==False):
+            if(not self.hasCards[p]):
                 continue
             previousHand = self.getPreviousHand(self.lastActions)
             legalActions = api.getHands(self.players[p].deck, api.HandGenerator.translateToOurForm(previousHand),self.level)
@@ -203,7 +185,7 @@ class Desk(object):
                 raise "206"
             await self.send_notice_action(p, action)
             if action != PASS:
-                noFollower=True
+                noFollower=False
                 for card in action[2]: 
                     self.players[p].deck.remove(card)
             self.players[p].lastAction=action
@@ -213,7 +195,6 @@ class Desk(object):
                 self.finished.append(p)
                 self.hasCards[p]=False
                 if(self.finished == [0, 2] or self.finished == [2, 0] or self.finished == [1, 3] or self.finished == [3, 1]):
-                    print("出现双上啦！")
                     await self.send_episode_over() 
                     return
                 else:
@@ -222,51 +203,52 @@ class Desk(object):
         #判断首圈接风情况
         if(noFollower==True):
             p=(finishedPos+1)%4
-        for i in range(4):
-            p=(p+1)%4
-            if(self.hasCards[p]==False):
-                continue
-            previousHand = self.getPreviousHand(lastActions)
-            legalActions = api.getHands(self.players[p].deck, api.HandGenerator.translateToOurForm(previousHand),self.level)
-            if(len(legalActions)==0):
-                print("211",previousHand)
-                raise "215"
-            await self.send_play(p, legalActions)
-            message = await self.players[p].sock.recv()
-            action = legalActions[json.loads(str(message))["actIndex"]]
-            await self.send_notice_action(p, action)
-            if action != PASS:
-                for card in action[2]: 
-                    self.players[p].deck.remove(card)
-            self.players[p].lastAction=action
-            lastActions = lastActions[1:] + [action]
-            if len(self.players[p].deck) == 0:
-                self.finished.append(p)
-                self.hasCards[p]=False
-                #self.players[p].lastAction=None
-                if(self.finished == [0, 2] or self.finished == [2, 0] or self.finished == [1, 3] or self.finished == [3, 1]):
-                    await self.send_episode_over() 
-                    return
-                else:
-                    await self.runPlay_2(p)
-                    return
+            print(lastActions)
+            #lastActions=[PASS,PASS]
+        while(True):
+            print("")
+            for i in range(4):
+                p=(p+1)%4
+                if(self.hasCards[p]==False):
+                    continue
+                previousHand = self.getPreviousHand(lastActions)
+                legalActions = api.getHands(self.players[p].deck, api.HandGenerator.translateToOurForm(previousHand),self.level)
+                if(len(legalActions)==0):
+                    print("211",previousHand)
+                    raise "215"
+                await self.send_play(p, legalActions)
+                message = await self.players[p].sock.recv()
+                action = legalActions[json.loads(str(message))["actIndex"]]
+                await self.send_notice_action(p, action)
+                if action != PASS:
+                    for card in action[2]: 
+                        self.players[p].deck.remove(card)
+                self.players[p].lastAction=action
+                lastActions = lastActions[1:] + [action]
+                if len(self.players[p].deck) == 0:
+                    self.finished.append(p)
+                    self.hasCards[p]=False
+                    #self.players[p].lastAction=None
+                    if(self.finished == [0, 2] or self.finished == [2, 0] or self.finished == [1, 3] or self.finished == [3, 1]):
+                        await self.send_episode_over() 
+                        return
+                    else:
+                        await self.runPlay_2(p)
+                        return
     async def runPlay_2(self, finishedPos=0): 
         print("=========2==========")
         p=finishedPos
-        lastAction=self.players[p].lastAction
-        firstTwoActions=[None,None]
+        upperAction=self.players[p].lastAction
+        firstTwoActions=[self.players[p].lastAction,None]
         p_remain=0
         for i in range(4):
             p=(p+1)%4
             if(self.hasCards[p]==False):
                 continue
-            try:
-                legalActions = api.getHands(self.players[p].deck, api.HandGenerator.translateToOurForm(lastAction),self.level)
-            except:
-                print(self.players[p].deck)
-                raise "111"
+            #previousHand = self.getPreviousHand(upperAction)
+            legalActions = api.getHands(self.players[p].deck, api.HandGenerator.translateToOurForm(upperAction),self.level)
             if(len(legalActions)==0):
-                print("242",self.players[p].deck, api.HandGenerator.translateToOurForm(lastAction))
+                print("242",self.players[p].deck, api.HandGenerator.translateToOurForm(upperAction))
                 raise "222"
             await self.send_play(p, legalActions)
             message = await self.players[p].sock.recv()
@@ -274,8 +256,9 @@ class Desk(object):
             self.players[p].lastAction=action
             await self.send_notice_action(p, action)
             firstTwoActions[p_remain]=action
-            lastAction=action
+            upperAction=action
             if action != PASS:
+                upperAction=action
                 for card in action[2]: 
                     self.players[p].deck.remove(card)
             if len(self.players[p].deck) == 0:
@@ -286,17 +269,18 @@ class Desk(object):
             p_remain+=1
         if(firstTwoActions==[PASS,PASS]):
             p=(finishedPos+1)%4
+            upperAction=PASS
         while(True):
             for i in range(4):
                 p=(p+1)%4
                 if(self.hasCards[p]==False):
                     continue
-                legalActions = api.getHands(self.players[p].deck, api.HandGenerator.translateToOurForm(lastAction),self.level)
+                legalActions = api.getHands(self.players[p].deck, api.HandGenerator.translateToOurForm(upperAction),self.level)
                 await self.send_play(p, legalActions)
                 message = await self.players[p].sock.recv()
                 action = legalActions[json.loads(str(message))["actIndex"]]
                 await self.send_notice_action(p, action)
-                lastAction=action
+                upperAction=action
                 if action != PASS:
                     for card in action[2]: 
                         self.players[p].deck.remove(card)

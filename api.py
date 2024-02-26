@@ -118,6 +118,7 @@ class HandGenerator(object):
             if(len(_a[2])==8): _a[0]==HandType.BOMB_8
             return _a
         _a[0]=BLACKBOX_OURS[_a[0]]
+        if(_a[0]=='PASS'): _a[0]=HandType.PASS
         return _a
     
     @staticmethod
@@ -151,13 +152,9 @@ class HandGenerator(object):
     def getSingles(self)->list:
         l=[]
         gotWild=False
-        for x in self.handCards:
-            if(x!=self.wildCard):
-                l.append([HandType.SINGLE,x[1],[x],0])
-            elif gotWild==False:
-                for y in RANK_WITHOUT_WILD:
-                    l.append([HandType.SINGLE,y,[x],1])
-                gotWild=True
+        xx=list(set(self.handCards))
+        for x in xx:
+            l.append([HandType.SINGLE,x[1],[x],0])
         return l
     def getPairs(self)->list:
         l=[]
@@ -446,13 +443,16 @@ class HandGenerator(object):
         return l
 a=HandGenerator(['SA', 'S2','HR','HR'],'3')
 def _getMoves(handCards:list[str],previousHand:list,level='2'):
-    if(previousHand[0]!='PASS'):
+    if(previousHand[0]!=HandType.PASS):
         moves=[[HandType.PASS,'PASS',['PASS'],0]]
     else:
         moves=[]
     flushes=[]
     rivalType=previousHand[0]#上家的牌型
     rivalRank=previousHand[1] #上家牌的点数
+    #钢板和顺子，按实际点数算
+    if(rivalRank==level and rivalType not in [HandType.FLUSH,HandType.PLATE,HandType.STRAIGHT] ):
+        rivalRank='R'
     hg=HandGenerator(handCards,level)
     if(rivalType==HandType.PASS):
             moves.extend(hg.getAll())
@@ -510,5 +510,5 @@ def getHands(handCards:list[str],previousHand:list,level:str):
     
     return [HandGenerator.translateToBlackBoxForm(x) for x in l]
 
-hg=HandGenerator(['S7', 'H2', 'C4', 'S5', 'D6', 'C5', 'SA', 'H6', 'CK', 'D5', 'S6', 'CA'] )
-#print(hg.getTripleOfPairs())
+#hg=HandGenerator(['S7', 'H2'] )
+#print(getHands(['S6'], [HandType.PASS,'PASS',['PASS']],'2'))
