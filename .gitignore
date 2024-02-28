@@ -3,3 +3,5 @@ clients/
 .vscode/
 *.log
 *.txt
+test.py
+test.ipynb
