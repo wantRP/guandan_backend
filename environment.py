@@ -39,7 +39,7 @@ class Desk(object):
         for x in self.players:
             x.lastAction=None
 
-    def __init__(self,rank='2',total_game=15,mode="RankFrozen",port='23334'):
+    def __init__(self,rank='2',total_game=1,mode="RankFrozen",port='23456'):
         #先实现只打2，先不实现各种模式
         self.rank=rank
         self.teamALevel='2'
@@ -54,14 +54,12 @@ class Desk(object):
         self.level='2'
         self.finished=[]
         self.total_game=total_game
-    
-    def begin(self):
-        self.state='waiting'
-        self.state='fourRemains'
-
-        #和client连接
-        asyncio.get_event_loop().run_until_complete(websockets.serve(self.runDesk, 'localhost', 23456))
-        asyncio.get_event_loop().run_forever()
+        self.port=port
+        self.shutdown_event = asyncio.Event()
+        self.hasFuture=False
+    async def begin(self):
+        async with websockets.serve(self.runDesk, 'localhost', self.port):
+            await self.shutdown_event.wait()
     def updateLevel(self):
         self.rank='2'
         self.teamALevel='2'
@@ -69,33 +67,43 @@ class Desk(object):
     def beginTribute(self):
         pass
     async def runDesk(self, websocket, path, shuffle=True):
-        self.players[self.player_num].sock = websocket
-        num = self.player_num
-        self.player_num += 1
-        if self.player_num == 4:    #连接的client达到4个
-            for i in range(self.total_game):
+        try:
+            if not self.hasFuture:
+                self.future=asyncio.Future()
+                self.hasFuture=True
+            self.players[self.player_num].sock = websocket
+            num = self.player_num
+            self.player_num += 1
+            if self.player_num == 4:    #连接的client达到4个
+                for i in range(self.total_game):
+                    self.shuffle_deck()      #洗牌
+                    self.lastActions=[None, None, None]
+                    self.cur_player=0       #初始玩家根据什么规定？
+                    self.shuffle = True
+                    self.finished = []
+                    for x in range(4): #向四位玩家发送初始手牌
+                        await self.notify_begin(self.players[x].sock, x) 
+                    await self.runPlay_4( 0)
+                    #升级什么的
+                print("完全结束")
+                self.future.set_result(0)
+                for x in self.players:
+                    await x.sock.close(code=1001,reason="final")
+                self.shutdown_event.set()
+                return
+            else:
+                if(self.player_num>4):
+                    await websocket.close(code=1001, reason="Server Overloaded")
+                    return
+                await self.future
+                return
+        except websockets.exceptions.ConnectionClosed:
+            print("CLOSE")
+            self.shutdown_event.set()
+        finally:
+            if websocket.open:
+                await websocket.close()
             
-                self.shuffle_deck()      #洗牌
-                self.lastActions=[None, None, None]
-                self.cur_player=0       #初始玩家根据什么规定？
-                self.shuffle = True
-                self.finished = []
-                
-                
-                for x in range(4): #向四位玩家发送初始手牌
-                    await self.notify_begin(self.players[x].sock, x) 
-                
-                await self.runPlay_4( 0)
-                #self.total_game -= 1
-                #升级什么的
-                self.updateLevel()
-                self.beginTribute()
-                self.resetStatus()
-            print("完全结束")
-            return
-        else:
-            
-            await asyncio.Future()
 
     def shuffle_deck(self)->None:
         """随机发牌"""
@@ -405,4 +413,4 @@ class Desk(object):
                                             "curTimes": curTimes,
                                             "settingTimes": self.total_game}))
 desk = Desk()
-desk.begin()
+asyncio.run(desk.begin())
