@@ -5,23 +5,17 @@ import websockets
 from enum import Enum
 import json 
 
-class Position(Enum):
-    NORTH=0
-    WEST=1
-    SOUTH=2
-    EAST=3
 
 PASS=['PASS','PASS',['PASS']]
 
 class Player(object):
-    def __init__(self,position,deck=None,level='2'):
+    def __init__(self,deck=None,level='2'):
         self.deck=deck
         self.level=level
-        self.position=position
         self.sock=None
         self.lastAction:list=None
 
-class Desk(object):
+class Server(object):
     def resetStatus(self):
         #self.rank=rank
         self.teamALevel='2'
@@ -39,12 +33,12 @@ class Desk(object):
         for x in self.players:
             x.lastAction=None
 
-    def __init__(self,rank='2',total_game=1,mode="RankFrozen",port='23456'):
+    def __init__(self,rank='2',total_game=1,actOrder=-1,mode="RankFrozen",port='23456'):
         #先实现只打2，先不实现各种模式
         self.rank=rank
         self.teamALevel='2'
         self.teamBLevel='2'
-        self.players=[Player(Position.NORTH),Player(Position.WEST),Player(Position.SOUTH),Player(Position.EAST)]
+        self.players=[Player(),Player(),Player(),Player()]
         self.hasCards=[True,True,True,True]
         self.player_num=0
         self.state=None
@@ -57,8 +51,9 @@ class Desk(object):
         self.port=port
         self.shutdown_event = asyncio.Event()
         self.hasFuture=False
+        self.position=actOrder
     async def begin(self):
-        async with websockets.serve(self.runDesk, 'localhost', self.port):
+        async with websockets.serve(self.runDesk, '0.0.0.0', self.port):
             await self.shutdown_event.wait()
     def updateLevel(self):
         self.rank='2'
@@ -75,6 +70,8 @@ class Desk(object):
             num = self.player_num
             self.player_num += 1
             if self.player_num == 4:    #连接的client达到4个
+                if(self.position!=-1):
+                    self.players[self.position],self.players[3]=self.players[3],self.players[self.position]
                 for i in range(self.total_game):
                     self.shuffle_deck()      #洗牌
                     self.lastActions=[None, None, None]
@@ -99,6 +96,9 @@ class Desk(object):
                 return
         except websockets.exceptions.ConnectionClosed:
             print("CLOSE")
+            for x in self.players:
+                if x.sock.open:
+                    await x.sock.close(code=1001,reason="final")
             self.shutdown_event.set()
         finally:
             if websocket.open:
@@ -107,12 +107,12 @@ class Desk(object):
 
     def shuffle_deck(self)->None:
         """随机发牌"""
-        fullDeck=api.FULL_DECK
+        fullDeck=api.FULL_DECK+api.FULL_DECK
         random.shuffle(fullDeck)
-        self.players[0].deck = fullDeck[0:13]
-        self.players[1].deck = fullDeck[13:26]
-        self.players[2].deck = fullDeck[26:39]
-        self.players[3].deck = fullDeck[39:52]
+        self.players[0].deck = fullDeck[0:26]
+        self.players[1].deck = fullDeck[27:53]
+        self.players[2].deck = fullDeck[54:80]
+        self.players[3].deck = fullDeck[81:107]
 
     async def notify_begin(self, websocket, num):
         """通知小局开始，将初始手牌信息发送给单个client"""
@@ -412,5 +412,5 @@ class Desk(object):
                                             "stage": "gameOver",
                                             "curTimes": curTimes,
                                             "settingTimes": self.total_game}))
-desk = Desk()
-asyncio.run(desk.begin())
+#desk = Server()
+#asyncio.run(desk.begin())

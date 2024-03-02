@@ -452,7 +452,7 @@ def _getMoves(handCards:list[str],previousHand:list,level='2'):
     rivalRank=previousHand[1] #上家牌的点数
     #钢板和顺子，按实际点数算
     if(rivalRank==level and rivalType not in [HandType.FLUSH,HandType.PLATE,HandType.STRAIGHT] ):
-        rivalRank='R'
+        rivalRank='L'
     hg=HandGenerator(handCards,level)
     if(rivalType==HandType.PASS):
             moves.extend(hg.getAll())
@@ -497,10 +497,10 @@ def _getMoves(handCards:list[str],previousHand:list,level='2'):
         return moves
     moves.extend(hg.getBomb4())
 
-    if(rivalType==HandType.SINGLE):         moves.extend([ x for x in hg.getSingles()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
-    if(rivalType==HandType.PAIR):           moves.extend([ x for x in hg.getPairs()         if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+    if(rivalType==HandType.SINGLE):         moves.extend([ x for x in hg.getSingles()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
+    if(rivalType==HandType.PAIR):           moves.extend([ x for x in hg.getPairs()         if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
     if(rivalType==HandType.TRIPLE_OF_PAIR): moves.extend([ x for x in hg.getTripleOfPairs() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
-    if(rivalType==HandType.TRIPLE):         moves.extend([ x for x in hg.getTriples()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+    if(rivalType==HandType.TRIPLE):         moves.extend([ x for x in hg.getTriples()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
     if(rivalType==HandType.PLATE):          moves.extend([ x for x in hg.getPlates()        if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
     if(rivalType==HandType.FULLHOUSE):      moves.extend([ x for x in hg.getFullHouse()     if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
     return moves
@@ -511,4 +511,4 @@ def getHands(handCards:list[str],previousHand:list,level:str):
     return [HandGenerator.translateToBlackBoxForm(x) for x in l]
 
 #hg=HandGenerator(['S7', 'H2'] )
-#print(getHands(['S6'], [HandType.PASS,'PASS',['PASS']],'2'))
+print(getHands(['S6','H2'], [HandType.SINGLE,'3',['S3']],'2'))
