@@ -462,7 +462,7 @@ def _getMoves(handCards:list[str],previousHand:list,level='2'):
         for x in straightsAndFlushes:
             if(x[0]==HandType.FLUSH):
                 flushes.append(x)
-            elif(RANK_NUM[x[1]]>RANK_NUM[rivalRank]):
+            elif(x[1]!='A' and (RANK_NUM[x[1]]>RANK_NUM[rivalRank] or rivalRank=='A')):
                 moves.append(x)
     if(rivalType==HandType.BOMB_KING):
         return [['PASS','PASS',['PASS'],0]]
@@ -499,10 +499,10 @@ def _getMoves(handCards:list[str],previousHand:list,level='2'):
 
     if(rivalType==HandType.SINGLE):         moves.extend([ x for x in hg.getSingles()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
     if(rivalType==HandType.PAIR):           moves.extend([ x for x in hg.getPairs()         if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
-    if(rivalType==HandType.TRIPLE_OF_PAIR): moves.extend([ x for x in hg.getTripleOfPairs() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+    if(rivalType==HandType.TRIPLE_OF_PAIR): moves.extend([ x for x in hg.getTripleOfPairs() if x[1]!='A' and (RANK_NUM[x[1]]>RANK_NUM[rivalRank] or rivalRank=='A')]  )
     if(rivalType==HandType.TRIPLE):         moves.extend([ x for x in hg.getTriples()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
-    if(rivalType==HandType.PLATE):          moves.extend([ x for x in hg.getPlates()        if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
-    if(rivalType==HandType.FULLHOUSE):      moves.extend([ x for x in hg.getFullHouse()     if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+    if(rivalType==HandType.PLATE):          moves.extend([ x for x in hg.getPlates()        if x[1]!='A' and (RANK_NUM[x[1]]>RANK_NUM[rivalRank] or rivalRank=='A')] )
+    if(rivalType==HandType.FULLHOUSE):      moves.extend([ x for x in hg.getFullHouse()     if x[1]!='A' and (RANK_NUM[x[1]]>RANK_NUM[rivalRank] or rivalRank=='A')] )
     return moves
 def getHands(handCards:list[str],previousHand:list,level:str):
     """接收格式为本代码格式，发送黑盒格式"""
@@ -511,4 +511,4 @@ def getHands(handCards:list[str],previousHand:list,level:str):
     return [HandGenerator.translateToBlackBoxForm(x) for x in l]
 
 #hg=HandGenerator(['S7', 'H2'] )
-print(getHands(['S6','H2'], [HandType.SINGLE,'3',['S3']],'2'))
+print(getHands(['ST','HJ','SK','SQ','HA','S2','S3','H4','H5'], [HandType.STRAIGHT,'A',['SA','S2','H3','H4','H5']],'2'))
