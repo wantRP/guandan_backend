@@ -212,9 +212,13 @@ class HandGenerator(object):
             #        l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[i+1],self.wildCard],1])
             #    i=i+1
         i=0
-        while(i<=len(self.nonWildCards)-3):
-            if self.nonWildCards[i][1] == self.nonWildCards[i+1][1] == self.nonWildCards[i+2][1]:
-                l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[i+1],self.nonWildCards[i+2]],0])
+        #print(self.pointedCards)
+        for i in range(12):
+            l.extend([[HandType.TRIPLE,x[0][1],list(x),0] for x in dict.fromkeys(combinations(self.pointedCards[i],3))])
+        #while(i<=len(self.nonWildCards)-3):
+        #    
+        #    if self.nonWildCards[i][1] == self.nonWildCards[i+1][1] == self.nonWildCards[i+2][1]:
+        #        l.append([HandType.TRIPLE,self.nonWildCards[i][1],[self.nonWildCards[i],self.nonWildCards[i+1],self.nonWildCards[i+2]],0])
             i=i+1
         return l
     def getTripleOfPairs(self)->list:
@@ -511,4 +515,4 @@ def getHands(handCards:list[str],previousHand:list,level:str):
     return [HandGenerator.translateToBlackBoxForm(x) for x in l]
 
 #hg=HandGenerator(['S7', 'H2'] )
-print(getHands(['ST','HJ','SK','SQ','HA','S2','S3','H4','H5'], [HandType.STRAIGHT,'A',['SA','S2','H3','H4','H5']],'2'))
+#print(getHands(['SJ', 'CJ', 'HJ', 'DJ'], [HandType.PASS,'PASS',['PASS']],'2'))
