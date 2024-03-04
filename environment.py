@@ -4,7 +4,7 @@ import asyncio
 import websockets
 from enum import Enum
 import json 
-
+from typing import List, Any
 
 PASS=['PASS','PASS',['PASS']]
 
@@ -42,7 +42,7 @@ class Server(object):
         self.hasCards=[True,True,True,True]
         self.player_num=0
         self.state=None
-        self.lastActions:list[list]=[None, None, None]
+        self.lastActions:List[list]=[None, None, None]
         self.cur_player=-1
         self.shuffle=False
         self.level='2'
@@ -91,6 +91,7 @@ class Server(object):
             else:
                 if(self.player_num>4):
                     await websocket.close(code=1001, reason="Server Overloaded")
+                    self.player_num-=1
                     return
                 await self.future
                 return
@@ -127,7 +128,7 @@ class Server(object):
         pass
     
     @staticmethod
-    def getPreviousHand(a:list[list]):
+    def getPreviousHand(a:List[list]):
         i=len(a)-1
         while(i>=0):
             if(a[i]==PASS or a[i]==None):
@@ -300,7 +301,6 @@ class Server(object):
 
     async def send_play(self, pos, legalActions):
         "出牌阶段，通知当前玩家做出动作"
-        #print("act")
         publicinfo = [{}, {}, {}, {}]
         #set publicinfo, 实际此信息没有利用到
         k = 0
@@ -350,7 +350,7 @@ class Server(object):
             greaterpos = (pos+k-1)%4
         
         await self.players[pos].sock.send(json.dumps({"type": "act",
-                                         "handsCards": self.players[pos].deck,
+                                         "handCards": self.players[pos].deck,
                                          "publicInfo": publicinfo,
                                          "selfRank": self.players[pos].level,
                                          "oppoRank": self.players[(pos+1)%4].level,
@@ -382,7 +382,7 @@ class Server(object):
                     gpos -= 1
                 k += 1
             greaterpos = (num+k-1)%4 
-        print(num,self.players[num].deck,action)
+        print(num,action)
         for i in range(0, 4):
             await self.players[i].sock.send(json.dumps({"type": "notify",
                                             "stage": "play",
@@ -413,4 +413,4 @@ class Server(object):
                                             "curTimes": curTimes,
                                             "settingTimes": self.total_game}))
 #desk = Server()
-#asyncio.run(desk.begin())
+#asyncio.get_event_loop().run_until_complete(desk.begin())
