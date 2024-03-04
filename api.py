@@ -26,7 +26,7 @@ FULL_DECK = [
 RANK=['B', 'R', 'L', 'A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
 RANK_WITHOUT_WILD=[ 'A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
 RANK_NUM={'R': 17, 'B': 16, 'L': 15, 'A': 13, 'K': 12, 'Q': 11, 'J': 10, 'T': 9, 
-           '9': 8, '8': 7, '7': 6, '6': 5, '5': 4, '4': 3, '3': 2, '2': 1,'1':0}
+           '9': 8, '8': 7, '7': 6, '6': 5, '5': 4, '4': 3, '3': 2, '2': 1,'1':0,'PASS':-1}
 NUM_RANK={17: 'R', 16: 'B', 15: 'L', 13: 'A', 12: 'K', 11: 'Q', 10: 'J', 9: 'T', 8: '9', 7: '8', 6: '7', 5: '6', 4: '5', 3: '4', 2: '3', 1: '2', 0: 'A'}
 PASS=['PASS','PASS',['PASS']]
 class HandType(Enum):
@@ -109,13 +109,14 @@ class HandGenerator(object):
         """a是黑盒的动作三元组"""
         _a=a.copy()
         if(_a[0]=='Bomb'):
-            if(len(_a[2])==4): _a[0]==HandType.BOMB_4
+            if(len(_a[2])==4): _a[0]=HandType.BOMB_4
             if (_a[2][0]=='SB' or _a[2][1]=='SB' or _a[2][2]=='SB' or _a[2][3]=='SB'):
                 _a[0]=HandType.BOMB_KING
-            if(len(_a[2])==5): _a[0]==HandType.BOMB_5
-            if(len(_a[2])==6): _a[0]==HandType.BOMB_6
-            if(len(_a[2])==7): _a[0]==HandType.BOMB_7
-            if(len(_a[2])==8): _a[0]==HandType.BOMB_8
+            if(len(_a[2])==5): 
+                _a[0]=HandType.BOMB_5
+            if(len(_a[2])==6): _a[0]=HandType.BOMB_6
+            if(len(_a[2])==7): _a[0]=HandType.BOMB_7
+            if(len(_a[2])==8): _a[0]=HandType.BOMB_8
             return _a
         _a[0]=BLACKBOX_OURS[_a[0]]
         if(_a[0]=='PASS'): _a[0]=HandType.PASS
@@ -288,6 +289,7 @@ class HandGenerator(object):
                 b=[list(x) for x in dict.fromkeys(combinations(pointCards[i+1],2))]
                 c=[list(x) for x in dict.fromkeys(combinations(pointCards[i+2],2))]
                 l=l+[[HandType.TRIPLE_OF_PAIR,pointCards[i][0][1],x[0]+x[1]+x[2],0] for x in product(a,b,c)]
+        #print(l)
         return l
     def getPlates(self)->list:
         l=[]
@@ -457,13 +459,13 @@ def _getMoves(handCards:list[str],previousHand:list,level='2'):
     rivalType=previousHand[0]#上家的牌型
     rivalRank=previousHand[1] #上家牌的点数
     #钢板和顺子，按实际点数算
-    if(rivalRank==level and rivalType not in [HandType.FLUSH,HandType.PLATE,HandType.STRAIGHT] ):
+    if(rivalRank==level and rivalType not in [HandType.FLUSH,HandType.PLATE,HandType.TRIPLE_OF_PAIR,HandType.STRAIGHT] ):
         rivalRank='L'
     hg=HandGenerator(handCards,level)
     if(rivalType==HandType.PASS):
             moves.extend(hg.getAll())
             return moves
-    if(rivalType==HandType.STRAIGHT): #特殊处理，先计算出同花顺，得到所有炸弹类牌和普通顺子后在函数末尾返回
+    if(rivalType==HandType.STRAIGHT): #特殊处理顺子及同花顺，先计算出同花顺，得到所有炸弹类牌和普通顺子后在函数末尾返回
         straightsAndFlushes=hg.getStraightsAndFlushes()
         for x in straightsAndFlushes:
             if(x[0]==HandType.FLUSH):
@@ -502,13 +504,12 @@ def _getMoves(handCards:list[str],previousHand:list,level='2'):
         moves.extend([x for x in hg.getBomb4() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
         return moves
     moves.extend(hg.getBomb4())
-
     if(rivalType==HandType.SINGLE):         moves.extend([ x for x in hg.getSingles()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
     if(rivalType==HandType.PAIR):           moves.extend([ x for x in hg.getPairs()         if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
     if(rivalType==HandType.TRIPLE_OF_PAIR): moves.extend([ x for x in hg.getTripleOfPairs() if x[1]!='A' and (RANK_NUM[x[1]]>RANK_NUM[rivalRank] or rivalRank=='A')]  )
     if(rivalType==HandType.TRIPLE):         moves.extend([ x for x in hg.getTriples()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
     if(rivalType==HandType.PLATE):          moves.extend([ x for x in hg.getPlates()        if x[1]!='A' and (RANK_NUM[x[1]]>RANK_NUM[rivalRank] or rivalRank=='A')] )
-    if(rivalType==HandType.FULLHOUSE):      moves.extend([ x for x in hg.getFullHouse()     if x[1]!='A' and (RANK_NUM[x[1]]>RANK_NUM[rivalRank] or rivalRank=='A')] )
+    if(rivalType==HandType.FULLHOUSE):      moves.extend([ x for x in hg.getFullHouse()     if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
     return moves
 def getHands(handCards:list[str],previousHand:list,level:str):
     """接收格式为本代码格式，发送黑盒格式"""
@@ -516,5 +517,6 @@ def getHands(handCards:list[str],previousHand:list,level:str):
     
     return [HandGenerator.translateToBlackBoxForm(x) for x in l]
 
-#hg=HandGenerator(['S7', 'H2'] )
-#print(getHands(['H4','S4','DK','SK','HK'], [HandType.FULLHOUSE,'Q',['HQ','HQ','HQ','H7','S7']],'2'))
+#hg=HandGenerator(['H2','HJ','HJ','DJ'] )
+#print(HandGenerator.translateToOurForm(['Bomb', 'T', ['ST', 'DT', 'DT', 'HT', 'HT']]))
+#print(getHands(['S8','S8','D8','D8'], [HandType.BOMB_4,'PASS',['H2','HJ','HJ','DJ']],'2'))
