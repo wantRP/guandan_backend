@@ -334,8 +334,8 @@ class HandGenerator(object):
         #    for j in range(self.wildCount-i+1):
         #    pairs=[x for x in self.pairs if x[3]<=self.wildCount-i ]
         l.extend([ [HandType.FULLHOUSE, y[1], y[2]+x[2], x[3]+y[3]] for x in self.pairs for y in self.triples if(x[1]!=y[1] and x[3]+y[3]<=self.wildCount)])
-        print(self.pairs)
-        print(self.triples)
+        #print(self.pairs)
+        #print(self.triples)
         return l
     def getStraightsAndFlushes(self)->list:
         l=[]
@@ -477,17 +477,17 @@ def _getMoves(handCards:list[str],previousHand:list,level='2'):
     moves.extend(hg.getBombKing())#更差的牌组可以下放了
 
     if(rivalType==HandType.BOMB_8):
-        moves.extend([x for x in hg.getBomb8() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+        moves.extend([x for x in hg.getBomb8() if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
         return moves
     moves.extend(hg.getBomb8())
 
     if(rivalType==HandType.BOMB_7):
-        moves.extend([x for x in hg.getBomb7() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+        moves.extend([x for x in hg.getBomb7() if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
         return moves
     moves.extend(hg.getBomb7())
 
     if(rivalType==HandType.BOMB_6):
-        moves.extend([x for x in hg.getBomb6() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+        moves.extend([x for x in hg.getBomb6() if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
         return moves
     moves.extend(hg.getBomb6())
 
@@ -496,12 +496,12 @@ def _getMoves(handCards:list[str],previousHand:list,level='2'):
     moves.extend(flushes)
 
     if(rivalType==HandType.BOMB_5):  
-        moves.extend([x for x in hg.getBomb5() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+        moves.extend([x for x in hg.getBomb5() if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
         return moves
     moves.extend(hg.getBomb5())
 
     if(rivalType==HandType.BOMB_4):         
-        moves.extend([x for x in hg.getBomb4() if RANK_NUM[x[1]]>RANK_NUM[rivalRank]] )
+        moves.extend([x for x in hg.getBomb4() if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
         return moves
     moves.extend(hg.getBomb4())
     if(rivalType==HandType.SINGLE):         moves.extend([ x for x in hg.getSingles()       if RANK_NUM[x[1]]>RANK_NUM[rivalRank] or (x[1]==level and RANK_NUM[rivalRank]<RANK_NUM['L'])] )
@@ -519,4 +519,4 @@ def getHands(handCards:list[str],previousHand:list,level:str):
 
 #hg=HandGenerator(['H2','HJ','HJ','DJ'] )
 #print(HandGenerator.translateToOurForm(['Bomb', 'T', ['ST', 'DT', 'DT', 'HT', 'HT']]))
-#print(getHands(['S8','S8','D8','D8'], [HandType.BOMB_4,'PASS',['H2','HJ','HJ','DJ']],'2'))
+print(getHands(['S2','S2','D2','H2'], [HandType.BOMB_4,'9',['H9','H9','H9','D9']],'2'))
