@@ -213,7 +213,7 @@ class HandGenerator(object):
             #    i=i+1
         i=0
         #print(self.pointedCards)
-        for i in range(12):
+        for i in range(13):
             l.extend([[HandType.TRIPLE,x[0][1],list(x),0] for x in dict.fromkeys(combinations(self.pointedCards[i],3))])
         #while(i<=len(self.nonWildCards)-3):
         #    
@@ -332,6 +332,8 @@ class HandGenerator(object):
         #    for j in range(self.wildCount-i+1):
         #    pairs=[x for x in self.pairs if x[3]<=self.wildCount-i ]
         l.extend([ [HandType.FULLHOUSE, y[1], y[2]+x[2], x[3]+y[3]] for x in self.pairs for y in self.triples if(x[1]!=y[1] and x[3]+y[3]<=self.wildCount)])
+        print(self.pairs)
+        print(self.triples)
         return l
     def getStraightsAndFlushes(self)->list:
         l=[]
@@ -515,4 +517,4 @@ def getHands(handCards:list[str],previousHand:list,level:str):
     return [HandGenerator.translateToBlackBoxForm(x) for x in l]
 
 #hg=HandGenerator(['S7', 'H2'] )
-#print(getHands(['SJ', 'CJ', 'HJ', 'DJ'], [HandType.PASS,'PASS',['PASS']],'2'))
+#print(getHands(['H4','S4','DK','SK','HK'], [HandType.FULLHOUSE,'Q',['HQ','HQ','HQ','H7','S7']],'2'))
