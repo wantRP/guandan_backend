@@ -45,6 +45,7 @@ class Server(object):
         self.player_num=0
         self.state=None
         self.lastActions:List[list]=[None, None, None]
+        self.lastActions:List[list]=[None, None, None]
         self.cur_player=-1
         self.shuffle=False
         self.level='2'

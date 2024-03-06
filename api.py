@@ -307,6 +307,7 @@ class HandGenerator(object):
                 b=[list(x) for x in dict.fromkeys(combinations(pointCards[i+1],2))]
                 c=[list(x) for x in dict.fromkeys(combinations(pointCards[i+2],2))]
                 l=l+[[HandType.TRIPLE_OF_PAIR,pointCards[i][0][1],x[0]+x[1]+x[2],0] for x in product(a,b,c)]
+        #print(l)
         return l
     def getPlates(self)->list:
         l=[]
