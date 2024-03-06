@@ -1,10 +1,11 @@
+import time
 import api
 import random
 import asyncio
 import websockets
 from enum import Enum
 import json 
-
+from typing import List, Any
 
 PASS=['PASS','PASS',['PASS']]
 
@@ -35,6 +36,7 @@ class Server(object):
 
     def __init__(self,rank='2',total_game=1,actOrder=-1,mode="RankFrozen",port='23456'):
         #先实现只打2，先不实现各种模式
+        print("desk made")
         self.rank=rank
         self.teamALevel='2'
         self.teamBLevel='2'
@@ -42,7 +44,7 @@ class Server(object):
         self.hasCards=[True,True,True,True]
         self.player_num=0
         self.state=None
-        self.lastActions:list[list]=[None, None, None]
+        self.lastActions:List[list]=[None, None, None]
         self.cur_player=-1
         self.shuffle=False
         self.level='2'
@@ -53,6 +55,7 @@ class Server(object):
         self.hasFuture=False
         self.position=actOrder
     async def begin(self):
+        self.resetStatus()
         async with websockets.serve(self.runDesk, '0.0.0.0', self.port):
             await self.shutdown_event.wait()
     def updateLevel(self):
@@ -63,12 +66,14 @@ class Server(object):
         pass
     async def runDesk(self, websocket, path, shuffle=True):
         try:
-            if not self.hasFuture:
-                self.future=asyncio.Future()
-                self.hasFuture=True
-            self.players[self.player_num].sock = websocket
-            num = self.player_num
-            self.player_num += 1
+            if(self.player_num<4):
+                if not self.hasFuture:
+                    self.future=asyncio.Future()
+                    self.hasFuture=True
+                print(self.player_num)
+                self.players[self.player_num].sock = websocket
+                num = self.player_num
+                self.player_num += 1
             if self.player_num == 4:    #连接的client达到4个
                 if(self.position!=-1):
                     self.players[self.position],self.players[3]=self.players[3],self.players[self.position]
@@ -88,12 +93,12 @@ class Server(object):
                     await x.sock.close(code=1001,reason="final")
                 self.shutdown_event.set()
                 return
-            else:
-                if(self.player_num>4):
-                    await websocket.close(code=1001, reason="Server Overloaded")
-                    return
-                await self.future
+            if(self.player_num>4):
+                await websocket.close(code=1001, reason="Server Overloaded")
+                self.player_num-=1
                 return
+            await self.future
+            return
         except websockets.exceptions.ConnectionClosed:
             print("CLOSE")
             for x in self.players:
@@ -107,12 +112,12 @@ class Server(object):
 
     def shuffle_deck(self)->None:
         """随机发牌"""
-        fullDeck=api.FULL_DECK+api.FULL_DECK
+        fullDeck=api.FULL_DECK
         random.shuffle(fullDeck)
-        self.players[0].deck = fullDeck[0:26]
-        self.players[1].deck = fullDeck[27:53]
-        self.players[2].deck = fullDeck[54:80]
-        self.players[3].deck = fullDeck[81:107]
+        self.players[0].deck = fullDeck[0:27]
+        self.players[1].deck = fullDeck[27:54]
+        self.players[2].deck = fullDeck[54:81]
+        self.players[3].deck = fullDeck[81:108]
 
     async def notify_begin(self, websocket, num):
         """通知小局开始，将初始手牌信息发送给单个client"""
@@ -127,7 +132,7 @@ class Server(object):
         pass
     
     @staticmethod
-    def getPreviousHand(a:list[list]):
+    def getPreviousHand(a:List[list]):
         i=len(a)-1
         while(i>=0):
             if(a[i]==PASS or a[i]==None):
@@ -149,9 +154,16 @@ class Server(object):
                 if(previousHand==None):
                     previousHand=PASS
                 legalActions = api.getHands(self.players[i].deck, api.HandGenerator.translateToOurForm(previousHand),self.level)
+                #print("Player ",i,len(legalActions),legalActions[:5])
                 await self.send_play( i, legalActions)
                 #broadcast his action
-                message = await self.players[i].sock.recv()
+                while True:
+                    message = await self.players[i].sock.recv()
+                    actionIndex=json.loads(str(message))["actIndex"]
+                    if(actionIndex>=len(legalActions)):
+                        await self.send_error(i)
+                    else:
+                        break
                 action = legalActions[json.loads(str(message))["actIndex"]]
                 await self.send_notice_action(i, action)
                 if action != PASS:
@@ -186,7 +198,13 @@ class Server(object):
                     print("177",self.players[p].deck,previousHand)
                     raise "200"
             await self.send_play(p, legalActions)
-            message = await self.players[p].sock.recv()
+            while True:
+                    message = await self.players[i].sock.recv()
+                    actionIndex=json.loads(str(message))["actIndex"]
+                    if(actionIndex>=len(legalActions)):
+                        await self.send_error(i)
+                    else:
+                        break
             action = legalActions[json.loads(str(message))["actIndex"]]
             if(len(legalActions)==0):
                 print("183",self.players[p].deck,previousHand)
@@ -225,7 +243,13 @@ class Server(object):
                     print("211",previousHand)
                     raise "215"
                 await self.send_play(p, legalActions)
-                message = await self.players[p].sock.recv()
+                while True:
+                    message = await self.players[i].sock.recv()
+                    actionIndex=json.loads(str(message))["actIndex"]
+                    if(actionIndex>=len(legalActions)):
+                        await self.send_error(i)
+                    else:
+                        break
                 action = legalActions[json.loads(str(message))["actIndex"]]
                 await self.send_notice_action(p, action)
                 if action != PASS:
@@ -253,14 +277,18 @@ class Server(object):
             p=(p+1)%4
             if(self.hasCards[p]==False):
                 continue
-            #previousHand = self.getPreviousHand(upperAction)
             legalActions = api.getHands(self.players[p].deck, api.HandGenerator.translateToOurForm(upperAction),self.level)
             if(len(legalActions)==0):
                 print("242",self.players[p].deck, api.HandGenerator.translateToOurForm(upperAction))
                 raise "222"
             await self.send_play(p, legalActions)
-            message = await self.players[p].sock.recv()
-            action = legalActions[json.loads(str(message))["actIndex"]]
+            while True:
+                message = await self.players[i].sock.recv()
+                actionIndex=json.loads(str(message))["actIndex"]
+                if(actionIndex>=len(legalActions)):
+                    await self.send_error(i)
+                else:
+                    break
             self.players[p].lastAction=action
             await self.send_notice_action(p, action)
             firstTwoActions[p_remain]=action
@@ -285,7 +313,13 @@ class Server(object):
                     continue
                 legalActions = api.getHands(self.players[p].deck, api.HandGenerator.translateToOurForm(upperAction),self.level)
                 await self.send_play(p, legalActions)
-                message = await self.players[p].sock.recv()
+                while True:
+                    message = await self.players[i].sock.recv()
+                    actionIndex=json.loads(str(message))["actIndex"]
+                    if(actionIndex>=len(legalActions)):
+                        await self.send_error(i)
+                    else:
+                        break
                 action = legalActions[json.loads(str(message))["actIndex"]]
                 await self.send_notice_action(p, action)
                 upperAction=action
@@ -300,7 +334,6 @@ class Server(object):
 
     async def send_play(self, pos, legalActions):
         "出牌阶段，通知当前玩家做出动作"
-        #print("act")
         publicinfo = [{}, {}, {}, {}]
         #set publicinfo, 实际此信息没有利用到
         k = 0
@@ -350,7 +383,7 @@ class Server(object):
             greaterpos = (pos+k-1)%4
         
         await self.players[pos].sock.send(json.dumps({"type": "act",
-                                         "handsCards": self.players[pos].deck,
+                                         "handCards": self.players[pos].deck,
                                          "publicInfo": publicinfo,
                                          "selfRank": self.players[pos].level,
                                          "oppoRank": self.players[(pos+1)%4].level,
@@ -363,9 +396,12 @@ class Server(object):
                                          "actionList": legalActions,
                                          "indexRange": len(legalActions)-1}))
 
-    #出牌阶段，通知其他玩家做出的动作
+    async def send_error(self, num, message="出牌不符合规则"):
+        await self.players[num].sock.send(json.dumps({"type": "error",
+                                            "message": message}))
     async def send_notice_action(self, num, action):
         """出牌阶段，通知所有四个玩家当前玩家的动作"""
+        time.sleep(0.5)        
         greaterpos = num
         greateraction = action
         if action == PASS:
@@ -382,7 +418,7 @@ class Server(object):
                     gpos -= 1
                 k += 1
             greaterpos = (num+k-1)%4 
-        print(num,self.players[num].deck,action)
+        print(num,action)
         for i in range(0, 4):
             await self.players[i].sock.send(json.dumps({"type": "notify",
                                             "stage": "play",
@@ -413,4 +449,4 @@ class Server(object):
                                             "curTimes": curTimes,
                                             "settingTimes": self.total_game}))
 #desk = Server()
-#asyncio.run(desk.begin())
+#asyncio.get_event_loop().run_until_complete(desk.begin())
